@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, Layers, FileText } from 'lucide-react';
+import { BookOpen, Layers, FileText, Sparkles } from 'lucide-react';
 import { useSurahs } from '@/hooks/use-quran';
 import { toArabicNumeral, SURAH_START_PAGES } from '@/lib/quran-api';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -8,6 +8,7 @@ const navItems = [
   { to: '/page/1', icon: FileText, label: 'تصفح بالصفحة', desc: '٦٠٤ صفحة' },
   { to: '/surah', icon: BookOpen, label: 'تصفح بالسورة', desc: '١١٤ سورة' },
   { to: '/juz', icon: Layers, label: 'تصفح بالجزء', desc: '٣٠ جزء' },
+  { to: '/ai', icon: Sparkles, label: 'تجويد AI', desc: 'اسأل سؤالك الديني' },
 ];
 
 export default function Index() {
@@ -26,7 +27,7 @@ export default function Index() {
       </header>
 
       {/* Quick Nav */}
-      <nav className="mx-auto grid max-w-lg grid-cols-3 gap-3 px-4 pb-10">
+      <nav className="mx-auto grid max-w-2xl grid-cols-2 gap-3 px-4 pb-10 sm:grid-cols-4">
         {navItems.map((item) => (
           <Link
             key={item.to}

@@ -37,12 +37,11 @@ export default function TagweedAI() {
     let assistantSoFar = "";
 
     try {
-      const CHAT_URL = `${(supabase as any).supabaseUrl}/functions/v1/tagweed-ai`;
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${(supabase as any).supabaseKey}`,
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({ messages: allMessages }),
       });

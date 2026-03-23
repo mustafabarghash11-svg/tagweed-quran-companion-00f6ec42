@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Send, Home, Bot, User, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tagweed-ai`;
 
 type Msg = { role: "user" | "assistant"; content: string };
 

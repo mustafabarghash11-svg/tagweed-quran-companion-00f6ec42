@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, Layers, FileText, Sparkles } from 'lucide-react';
+import { BookOpen, Layers, FileText, Sparkles, User, LogOut } from 'lucide-react';
 import { useSurahs } from '@/hooks/use-quran';
 import { toArabicNumeral, SURAH_START_PAGES } from '@/lib/quran-api';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/hooks/use-auth';
+import { Button } from '@/components/ui/button';
 
 const navItems = [
   { to: '/page/1', icon: FileText, label: 'تصفح بالصفحة', desc: '٦٠٤ صفحة' },
@@ -13,11 +15,32 @@ const navItems = [
 
 export default function Index() {
   const { data: surahs, isLoading } = useSurahs();
+  const { user, signOut } = useAuth();
 
   return (
     <div className="min-h-screen" dir="rtl">
+      {/* Auth bar */}
+      <div className="flex items-center justify-between px-4 pt-4">
+        <div />
+        {user ? (
+          <div className="flex items-center gap-2">
+            <span className="font-ui text-xs text-muted-foreground">{user.email}</span>
+            <Button size="icon" variant="ghost" onClick={signOut} className="h-8 w-8 rounded-full active:scale-95">
+              <LogOut className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          </div>
+        ) : (
+          <Link to="/auth">
+            <Button size="sm" variant="outline" className="gap-2 border-primary/15 font-ui active:scale-[0.97]">
+              <User className="h-4 w-4" />
+              تسجيل الدخول
+            </Button>
+          </Link>
+        )}
+      </div>
+
       {/* Hero */}
-      <header className="flex flex-col items-center gap-2 px-4 pb-8 pt-16">
+      <header className="flex flex-col items-center gap-2 px-4 pb-8 pt-8">
         <div className="mb-2 h-px w-24 bg-primary/40" />
         <h1 className="font-quran text-5xl text-primary md:text-6xl" style={{ lineHeight: '1.1' }}>
           تجويد

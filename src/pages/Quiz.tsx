@@ -214,18 +214,27 @@ export default function Quiz() {
 
   const saveToDb = async (isCorrect: boolean, earned: number) => {
     if (!user) return;
-    const existing = scores.find(s => s.category === selectedCategory);
     const today = new Date().toISOString().split("T")[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
-    const isStreak = existing?.last_played_at === yesterday;
-    const newStreak = isStreak ? (existing?.streak || 0) + 1 : 1;
 
-    if (existing) {
+    // نجيب البيانات الحالية من DB مباشرة لتجنب stale state
+    const { data: existingRows } = await supabase
+      .from("quiz_scores")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("category", selectedCategory)
+      .maybeSingle();
+
+    if (existingRows) {
+      const isStreak = existingRows.last_played_at === yesterday;
+      const newStreak = isStreak ? (existingRows.streak || 0) + 1 : 1;
+
       await supabase.from("quiz_scores").update({
-        total_questions: existing.total_questions + 1,
-        correct_answers: existing.correct_answers + (isCorrect ? 1 : 0),
-        total_points: existing.total_points + (isCorrect ? 1 : 0),
-        xp: (existing.xp || 0) + earned,
+        // نجمع على القيم الحقيقية من DB وليس من الـ state
+        total_questions: existingRows.total_questions + 1,
+        correct_answers: existingRows.correct_answers + (isCorrect ? 1 : 0),
+        total_points: existingRows.total_points + (isCorrect ? 1 : 0),
+        xp: (existingRows.xp || 0) + earned,
         streak: newStreak,
         last_played_at: today,
         updated_at: new Date().toISOString(),

@@ -8,7 +8,7 @@ export default function SurahBrowser() {
   const { data: surahs, isLoading } = useSurahs();
 
   return (
-    <div className="min-h-screen" dir="rtl">
+    <div className="min-h-screen pb-20" dir="rtl">
       <header className="border-b border-primary/20 bg-card/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
           <Link to="/" className="text-primary transition-transform hover:scale-105 active:scale-95">

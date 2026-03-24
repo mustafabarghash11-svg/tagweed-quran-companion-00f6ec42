@@ -54,6 +54,15 @@ const DIFFICULTIES = [
 
 type Difficulty = "easy" | "medium" | "hard";
 
+// XP نظام واضح: إجابة صحيحة = XP الأساسي، + مكافأة السرعة إذا أجبت بأكثر من 60% من الوقت
+// لا توجد XP للإجابة الخاطئة أو انتهاء الوقت
+const calcXP = (diff: Difficulty, timeLeft: number, totalTime: number): { base: number; bonus: number; total: number } => {
+  const diffInfo = DIFFICULTIES.find(d => d.id === diff)!;
+  const base = diffInfo.xp;
+  const bonus = timeLeft > totalTime * 0.6 ? Math.round(diffInfo.xp * 0.5) : 0;
+  return { base, bonus, total: base + bonus };
+};
+
 const RANKS = [
   { label: "مبتدئ",   min: 0,    icon: "📖" },
   { label: "متعلم",   min: 50,   icon: "🌱" },
@@ -94,10 +103,17 @@ export default function Quiz() {
   const [timerActive, setTimerActive] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Session stats
+  // Session stats — لا يُعاد ضبطها إلا عند الضغط على "ابدأ الاختبار" من جديد
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [sessionTotal, setSessionTotal] = useState(0);
-  const [xpEarned, setXpEarned] = useState(0);
+  const [sessionXP, setSessionXP] = useState(0);
+
+  // XP المكتسب من السؤال الحالي — يُحسب مرة واحدة فقط في handleAnswer
+  const [lastEarnedXP, setLastEarnedXP] = useState(0);
+  const lastEarnedXPRef = useRef(0); // نسخة ref لتجنب stale closure
+
+  // تتبع الأسئلة السابقة في الجلسة لمنع التكرار (نحتفظ بنص السؤال فقط)
+  const [previousQuestions, setPreviousQuestions] = useState<string[]>([]);
 
   useEffect(() => { if (user) loadScores(); }, [user]);
 
@@ -122,6 +138,10 @@ export default function Quiz() {
     setAnswered(true);
     setTimerActive(false);
     setSessionTotal(p => p + 1);
+    setLastEarnedXP(0);
+    lastEarnedXPRef.current = 0;
+    // لا نحفظ في الـ DB عند انتهاء الوقت — نعامله كإجابة خاطئة بدون XP
+    if (user && question) saveToDb(false, 0);
     setScreen("result");
   };
 
@@ -141,16 +161,24 @@ export default function Quiz() {
     setLoadingLeader(false);
   };
 
-  const fetchQuestion = async (cat: string, diff: Difficulty, type: "mcq" | "complete") => {
+  const fetchQuestion = async (cat: string, diff: Difficulty, type: "mcq" | "complete", prevQuestions: string[]) => {
     setLoadingQuestion(true);
     setQuestion(null);
     setSelectedAnswer(null);
     setAnswered(false);
+    setLastEarnedXP(0);
+    lastEarnedXPRef.current = 0;
     clearInterval(timerRef.current!);
 
     try {
       const { data, error } = await supabase.functions.invoke("quiz-generate", {
-        body: { category: cat, difficulty: diff, type },
+        body: {
+          category: cat,
+          difficulty: diff,
+          type,
+          // نرسل آخر 10 أسئلة فقط لتجنب تضخيم الـ prompt
+          previousQuestions: prevQuestions.slice(-10),
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -175,34 +203,21 @@ export default function Quiz() {
   };
 
   const startQuiz = () => {
+    // إعادة ضبط إحصائيات الجلسة فقط عند بدء جلسة جديدة
     setSessionCorrect(0);
     setSessionTotal(0);
-    setXpEarned(0);
+    setSessionXP(0);
+    setPreviousQuestions([]);
     setScreen("quiz");
-    fetchQuestion(selectedCategory, difficulty, questionType);
+    fetchQuestion(selectedCategory, difficulty, questionType, []);
   };
 
-  const handleAnswer = async (index: number) => {
-    if (answered || !question || !user) return;
-    clearInterval(timerRef.current!);
-    setTimerActive(false);
-    setSelectedAnswer(index);
-    setAnswered(true);
-
-    const isCorrect = index === question.correct_index;
-    const diffInfo = DIFFICULTIES.find(d => d.id === difficulty)!;
-
-    // Bonus XP for fast answer
-    const timeBonus = timeLeft > diffInfo.time * 0.6 ? Math.round(diffInfo.xp * 0.5) : 0;
-    const earned = isCorrect ? diffInfo.xp + timeBonus : 0;
-
-    setSessionTotal(p => p + 1);
-    if (isCorrect) { setSessionCorrect(p => p + 1); setXpEarned(p => p + earned); }
-
-    // Save to DB
+  const saveToDb = async (isCorrect: boolean, earned: number) => {
+    if (!user) return;
     const existing = scores.find(s => s.category === selectedCategory);
     const today = new Date().toISOString().split("T")[0];
-    const isStreak = existing?.last_played_at === new Date(Date.now() - 86400000).toISOString().split("T")[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+    const isStreak = existing?.last_played_at === yesterday;
     const newStreak = isStreak ? (existing?.streak || 0) + 1 : 1;
 
     if (existing) {
@@ -229,7 +244,47 @@ export default function Quiz() {
     }
 
     await loadScores();
+  };
+
+  const handleAnswer = async (index: number) => {
+    if (answered || !question || !user) return;
+    clearInterval(timerRef.current!);
+    setTimerActive(false);
+    setSelectedAnswer(index);
+    setAnswered(true);
+
+    const isCorrect = index === question.correct_index;
+    const diffInfo = DIFFICULTIES.find(d => d.id === difficulty)!;
+
+    // حساب XP مرة واحدة فقط هنا
+    const { total: earned, base, bonus } = isCorrect
+      ? calcXP(difficulty, timeLeft, diffInfo.time)
+      : { base: 0, bonus: 0, total: 0 };
+
+    // تسجيل السؤال الحالي في قائمة الأسئلة السابقة
+    const updatedPrevious = [...previousQuestions, question.question];
+    setPreviousQuestions(updatedPrevious);
+
+    // تحديث إحصائيات الجلسة
+    setSessionTotal(p => p + 1);
+    if (isCorrect) {
+      setSessionCorrect(p => p + 1);
+      setSessionXP(p => p + earned);
+    }
+
+    // حفظ XP المكتسب للعرض في صفحة النتيجة
+    setLastEarnedXP(earned);
+    lastEarnedXPRef.current = earned;
+
+    // حفظ في قاعدة البيانات
+    await saveToDb(isCorrect, earned);
+
     setScreen("result");
+  };
+
+  const goToNextQuestion = () => {
+    setScreen("quiz");
+    fetchQuestion(selectedCategory, difficulty, questionType, previousQuestions);
   };
 
   const catInfo = CATEGORIES.find(c => c.id === selectedCategory);
@@ -265,7 +320,6 @@ export default function Quiz() {
                 <p className="font-ui text-2xl font-bold text-primary">{toArabicNumeral(totalXP)}</p>
               </div>
             </div>
-            {/* XP progress to next rank */}
             {(() => {
               const nextRank = RANKS.find(r => r.min > totalXP);
               if (!nextRank) return <p className="font-ui text-xs text-primary font-bold text-center">🏆 وصلت للرتبة الأعلى!</p>;
@@ -285,7 +339,6 @@ export default function Quiz() {
             })()}
           </div>
 
-          {/* Stats row */}
           {totalQ > 0 && (
             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
               {[
@@ -377,12 +430,24 @@ export default function Quiz() {
             </div>
           </div>
 
-          {/* XP preview */}
-          <div className="rounded-xl bg-primary/5 border border-primary/10 px-4 py-3 flex items-center justify-between">
-            <span className="font-ui text-sm text-muted-foreground">XP محتمل للإجابة الصحيحة</span>
-            <span className="font-ui text-base font-bold text-primary flex items-center gap-1">
-              <Zap className="h-4 w-4" /> حتى {toArabicNumeral(Math.round(diffInfo.xp * 1.5))} XP
-            </span>
+          {/* XP preview — الآن يعرض XP الأساسي + مكافأة السرعة بوضوح */}
+          <div className="rounded-xl bg-primary/5 border border-primary/10 px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-ui text-sm text-muted-foreground">إجابة صحيحة</span>
+              <span className="font-ui text-base font-bold text-primary flex items-center gap-1">
+                <Zap className="h-4 w-4" /> {toArabicNumeral(diffInfo.xp)} XP
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-ui text-xs text-muted-foreground">مكافأة السرعة (إجابة سريعة)</span>
+              <span className="font-ui text-xs font-bold text-amber-600 flex items-center gap-1">
+                <Timer className="h-3 w-3" /> +{toArabicNumeral(Math.round(diffInfo.xp * 0.5))} XP
+              </span>
+            </div>
+            <div className="border-t border-primary/10 pt-2 flex items-center justify-between">
+              <span className="font-ui text-sm font-bold">الحد الأقصى</span>
+              <span className="font-ui text-sm font-bold text-primary">{toArabicNumeral(Math.round(diffInfo.xp * 1.5))} XP</span>
+            </div>
           </div>
 
           <Button onClick={startQuiz} className="w-full py-6 font-ui text-base gap-2">
@@ -404,6 +469,12 @@ export default function Quiz() {
               <ArrowRight className="h-4 w-4" /> رجوع
             </button>
             <div className="flex items-center gap-2">
+              {/* عداد الأسئلة في الجلسة */}
+              {sessionTotal > 0 && (
+                <span className="font-ui text-xs text-muted-foreground">
+                  {toArabicNumeral(sessionCorrect)}/{toArabicNumeral(sessionTotal)} صحيح
+                </span>
+              )}
               <span className="font-ui text-xs text-muted-foreground">{catInfo?.label}</span>
               <span className={`flex items-center gap-1 rounded-full px-2.5 py-1 font-ui text-xs font-bold ${
                 difficulty === "easy" ? "bg-emerald-100 text-emerald-700" :
@@ -478,9 +549,9 @@ export default function Quiz() {
   if (screen === "result" && question) {
     const isCorrect = selectedAnswer === question.correct_index;
     const timedOut = selectedAnswer === -1;
-    const diffInfo = DIFFICULTIES.find(d => d.id === difficulty)!;
-    const timeBonus = timeLeft > diffInfo.time * 0.6 ? Math.round(diffInfo.xp * 0.5) : 0;
-    const earned = isCorrect ? diffInfo.xp + timeBonus : 0;
+    // نستخدم lastEarnedXP الذي حُسب مرة واحدة في handleAnswer — لا نعيد الحساب
+    const earned = lastEarnedXP;
+    const hasSpeedBonus = isCorrect && earned > diffInfo.xp;
 
     return (
       <div className="flex min-h-screen flex-col items-center px-4 pt-10 pb-24" dir="rtl">
@@ -489,17 +560,23 @@ export default function Quiz() {
           <div className="flex flex-col items-center gap-2">
             {timedOut ? (
               <><div className="flex h-16 w-16 items-center justify-center rounded-full bg-orange-100"><Timer className="h-9 w-9 text-orange-500" /></div>
-              <h2 className="font-ui text-2xl font-bold text-orange-600">انتهى الوقت!</h2></>
+              <h2 className="font-ui text-2xl font-bold text-orange-600">انتهى الوقت!</h2>
+              <p className="font-ui text-sm text-muted-foreground">الإجابة الصحيحة: {question.options[question.correct_index]}</p></>
             ) : isCorrect ? (
               <><div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100"><CheckCircle2 className="h-9 w-9 text-emerald-600" /></div>
               <h2 className="font-ui text-2xl font-bold text-emerald-700">إجابة صحيحة! 🎉</h2>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap justify-center">
                 <span className="flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 font-ui text-sm font-bold text-primary">
-                  <Zap className="h-3.5 w-3.5" /> +{toArabicNumeral(diffInfo.xp)} XP
+                  <Zap className="h-3.5 w-3.5" /> +{toArabicNumeral(diffInfo.xp)} XP أساسي
                 </span>
-                {timeBonus > 0 && <span className="flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 font-ui text-xs font-bold text-amber-700">
-                  <Timer className="h-3 w-3" /> +{toArabicNumeral(timeBonus)} سرعة
-                </span>}
+                {hasSpeedBonus && (
+                  <span className="flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 font-ui text-xs font-bold text-amber-700">
+                    <Timer className="h-3 w-3" /> +{toArabicNumeral(earned - diffInfo.xp)} مكافأة سرعة
+                  </span>
+                )}
+                <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 font-ui text-sm font-bold text-emerald-700">
+                  المجموع: +{toArabicNumeral(earned)} XP
+                </span>
               </div></>
             ) : (
               <><div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100"><XCircle className="h-9 w-9 text-red-500" /></div>
@@ -508,16 +585,16 @@ export default function Quiz() {
             )}
           </div>
 
-          {/* Session mini stats */}
+          {/* Session stats — تراكمية طوال الجلسة */}
           <div className="grid grid-cols-3 gap-2 text-center">
             {[
-              { val: toArabicNumeral(sessionTotal), label: "سؤال" },
-              { val: toArabicNumeral(sessionCorrect), label: "صحيح" },
-              { val: toArabicNumeral(xpEarned + earned), label: "XP اليوم" },
+              { val: toArabicNumeral(sessionTotal), label: "سؤال هذه الجلسة" },
+              { val: toArabicNumeral(sessionCorrect), label: "إجابة صحيحة" },
+              { val: toArabicNumeral(sessionXP), label: "XP مكتسب" },
             ].map(s => (
-              <div key={s.label} className="rounded-xl bg-card border border-primary/10 py-3">
+              <div key={s.label} className="rounded-xl bg-card border border-primary/10 py-3 px-1">
                 <p className="font-ui text-xl font-bold text-primary">{s.val}</p>
-                <p className="font-ui text-xs text-muted-foreground">{s.label}</p>
+                <p className="font-ui text-[10px] text-muted-foreground leading-tight">{s.label}</p>
               </div>
             ))}
           </div>
@@ -530,8 +607,7 @@ export default function Quiz() {
 
           {/* Actions */}
           <div className="flex gap-3">
-            <Button onClick={() => { setScreen("quiz"); fetchQuestion(selectedCategory, difficulty, questionType); }}
-              className="flex-1 gap-2 py-5 font-ui active:scale-[0.97]">
+            <Button onClick={goToNextQuestion} className="flex-1 gap-2 py-5 font-ui active:scale-[0.97]">
               سؤال تالي <ChevronRight className="h-4 w-4" />
             </Button>
             <Button variant="outline" onClick={() => setScreen("home")} className="gap-2 border-primary/15 py-5 font-ui active:scale-[0.97]">

@@ -1,21 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Layers, FileText, Bookmark, Search, Sun, Moon, Menu, Brain, ChevronLeft, Target, User, LogIn } from 'lucide-react';
+import { BookOpen, Search, Sun, Moon, Menu, ChevronLeft, FileText, User, LogIn } from 'lucide-react';
 import { useSurahs } from '@/hooks/use-quran';
 import { toArabicNumeral, SURAH_START_PAGES } from '@/lib/quran-api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSettings } from '@/context/SettingsContext.tsx';
-import { useBookmarks } from '@/context/BookmarksContext.tsx';
 import { useAuth } from '@/context/AuthContext.tsx';
 import { Sidebar } from '@/components/Sidebar';
-
-const navItems = [
-  { to: '/page/1', icon: FileText, label: 'تصفح بالصفحة', desc: '٦٠٤ صفحة', color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
-  { to: '/surah', icon: BookOpen, label: 'تصفح بالسورة', desc: '١١٤ سورة', color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
-  { to: '/juz', icon: Layers, label: 'تصفح بالجزء', desc: '٣٠ جزء', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
-  { to: '/memorize', icon: Brain, label: 'نظام الحفظ', desc: 'راجع حفظك', color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400' },
-  { to: '/khatma', icon: Target, label: 'خطة الختمة', desc: 'اختم القرآن', color: 'bg-green-500/10 text-green-600 dark:text-green-400' },
-];
 
 // آخر صفحة مقروءة
 function getLastPage(): number | null {
@@ -26,8 +17,7 @@ function getLastPage(): number | null {
 export default function Index() {
   const { data: surahs, isLoading } = useSurahs();
   const { theme, toggleTheme } = useSettings();
-  const { bookmarks } = useBookmarks();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const lastPage = getLastPage();
 
@@ -41,17 +31,6 @@ export default function Index() {
             className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
           >
             <Search className="h-4.5 w-4.5" />
-          </Link>
-          <Link
-            to="/bookmarks"
-            className="relative flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-          >
-            <Bookmark className="h-4.5 w-4.5" />
-            {bookmarks.length > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
-                {bookmarks.length > 9 ? '+٩' : toArabicNumeral(bookmarks.length)}
-              </span>
-            )}
           </Link>
         </div>
         <div className="flex items-center gap-1.5">
@@ -119,25 +98,6 @@ export default function Index() {
           </Link>
         </div>
       )}
-
-      {/* Quick Nav */}
-      <nav className="mx-auto grid max-w-lg grid-cols-2 gap-3 px-4 pb-6">
-        {navItems.map((item) => (
-          <Link
-            key={item.to}
-            to={item.to}
-            className="group flex items-center gap-3 rounded-2xl border border-primary/10 bg-card px-4 py-4 shadow-sm transition-all hover:shadow-md hover:border-primary/25 active:scale-[0.97]"
-          >
-            <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${item.color}`}>
-              <item.icon className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="font-ui text-sm font-bold leading-tight">{item.label}</p>
-              <p className="font-ui text-xs text-muted-foreground">{item.desc}</p>
-            </div>
-          </Link>
-        ))}
-      </nav>
 
       {/* فهرس السور */}
       <section className="mx-auto max-w-2xl px-4">

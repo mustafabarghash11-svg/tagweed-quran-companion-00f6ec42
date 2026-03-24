@@ -9,6 +9,7 @@ import QuranReader from "./pages/QuranReader.tsx";
 import SurahBrowser from "./pages/SurahBrowser.tsx";
 import JuzBrowser from "./pages/JuzBrowser.tsx";
 import TagweedAI from "./pages/TagweedAI.tsx";
+import Quiz from "./pages/Quiz.tsx";
 import Auth from "./pages/Auth.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="/surah" element={<SurahBrowser />} />
             <Route path="/juz" element={<JuzBrowser />} />
             <Route path="/ai" element={<TagweedAI />} />
+            <Route path="/quiz" element={<Quiz />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

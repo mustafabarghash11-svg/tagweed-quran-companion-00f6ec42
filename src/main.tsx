@@ -2,8 +2,15 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { SettingsProvider } from "./context/SettingsContext";
+import { BookmarksProvider } from "./context/BookmarksContext";
+import { AudioProvider } from "./context/AudioContext";
 
-<SettingsProvider>
-  <App />
-</SettingsProvider>
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <SettingsProvider>
+    <BookmarksProvider>
+      <AudioProvider>
+        <App />
+      </AudioProvider>
+    </BookmarksProvider>
+  </SettingsProvider>
+);

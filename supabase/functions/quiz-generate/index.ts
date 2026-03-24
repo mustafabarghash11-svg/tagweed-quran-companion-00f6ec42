@@ -21,12 +21,19 @@ serve(async (req) => {
   }
 
   try {
-    const { category, difficulty = "medium" } = await req.json();
+    const { category, difficulty = "medium", previousQuestions = [] } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const categoryDesc = CATEGORIES[category] || CATEGORIES.general;
     const difficultyAr = difficulty === "easy" ? "سهل" : difficulty === "hard" ? "صعب" : "متوسط";
+
+    const avoidSection =
+      previousQuestions.length > 0
+        ? `\n\nتجنّب تمامًا هذه الأسئلة التي سُئلت مسبقًا في هذه الجلسة:\n${previousQuestions
+            .map((q: string, i: number) => `${i + 1}. ${q}`)
+            .join("\n")}`
+        : "";
 
     const systemPrompt = `أنت مُعلّم إسلامي متخصص في إنشاء أسئلة اختبارية دقيقة وصحيحة.
 أنشئ سؤالاً واحداً في مجال: ${categoryDesc}
@@ -34,9 +41,10 @@ serve(async (req) => {
 
 القواعد:
 1. السؤال يجب أن يكون صحيحاً 100% ومبنياً على مصادر موثوقة
-2. أعطِ 4 خيارات (أ، ب، ج، د) واحد منها فقط صحيح
+2. أعطِ 4 خيارات واحد منها فقط صحيح
 3. الخيارات يجب أن تكون منطقية ومعقولة (لا تضع خيارات سخيفة)
 4. أضف شرحاً مختصراً للإجابة الصحيحة مع ذكر المصدر (آية، حديث، إجماع)
+5. يجب أن يكون السؤال مختلفاً تمامًا في الموضوع والصياغة عن الأسئلة السابقة${avoidSection}
 
 أجب باستخدام الأداة المتاحة فقط.`;
 
@@ -52,7 +60,10 @@ serve(async (req) => {
           model: "google/gemini-3-flash-preview",
           messages: [
             { role: "system", content: systemPrompt },
-            { role: "user", content: `أنشئ سؤالاً في فئة "${categoryDesc}" بمستوى ${difficultyAr}` },
+            {
+              role: "user",
+              content: `أنشئ سؤالاً جديداً ومختلفاً في فئة "${categoryDesc}" بمستوى ${difficultyAr}`,
+            },
           ],
           tools: [
             {
@@ -112,7 +123,7 @@ serve(async (req) => {
 
     const data = await response.json();
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    
+
     if (!toolCall?.function?.arguments) {
       return new Response(
         JSON.stringify({ error: "لم يتم إنشاء السؤال بشكل صحيح" }),

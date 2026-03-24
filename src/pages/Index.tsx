@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, Layers, FileText, Sparkles, User, LogOut } from 'lucide-react';
+import { BookOpen, Layers, FileText, Sparkles, User, LogOut, HelpCircle } from 'lucide-react';
 import { useSurahs } from '@/hooks/use-quran';
 import { toArabicNumeral, SURAH_START_PAGES } from '@/lib/quran-api';
 import { Skeleton } from '@/components/ui/skeleton';

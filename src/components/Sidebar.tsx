@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { X, Sun, Moon, Target, Check, BookOpen, Flame, Music2, Palette } from 'lucide-react';
-import { useSettings } from '@/context/SettingsContext';
-import { reciters } from '@/data/reciters';
-import { useAudio } from '@/context/AudioContext.tsx';
-import { toArabicNumeral } from '@/lib/quran-api';
+import { useSettings } from '/context/SettingsContext';
+import { reciters } from '/data/reciters';
+import { useAudio } from '/context/AudioContext.tsx';
+import { toArabicNumeral } from '/lib/quran-api';
 
 interface SidebarProps {
   isOpen: boolean;

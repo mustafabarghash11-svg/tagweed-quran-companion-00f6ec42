@@ -85,12 +85,18 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const setColorTheme = (c: ColorTheme) => {
     setColorThemeState(c);
     localStorage.setItem("colorTheme", JSON.stringify(c));
-    document.documentElement.style.setProperty('--primary-hsl', c.primary);
+    document.documentElement.style.setProperty('--primary', c.primary);
+    document.documentElement.style.setProperty('--ring', c.primary);
+    document.documentElement.style.setProperty('--accent', c.primary);
+    document.documentElement.style.setProperty('--sidebar-primary', c.primary);
   };
 
   useEffect(() => {
     document.documentElement.className = theme;
-    document.documentElement.style.setProperty('--primary-hsl', colorTheme.primary);
+    document.documentElement.style.setProperty('--primary', colorTheme.primary);
+    document.documentElement.style.setProperty('--ring', colorTheme.primary);
+    document.documentElement.style.setProperty('--accent', colorTheme.primary);
+    document.documentElement.style.setProperty('--sidebar-primary', colorTheme.primary);
   }, []);
 
   return (

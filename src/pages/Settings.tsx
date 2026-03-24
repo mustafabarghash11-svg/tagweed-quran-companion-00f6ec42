@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Sun, Moon, Music2, Type, Palette, BookOpen, Check, LogOut, User } from 'lucide-react';
+import { ArrowRight, Sun, Moon, Music2, Type, Palette, BookOpen, Check, LogOut, User, Brain } from 'lucide-react';
 import { reciters } from '@/data/reciters';
 import { useSettings, COLOR_THEMES } from '@/context/SettingsContext';
 import { useAudio } from '@/context/AudioContext';
@@ -154,6 +154,13 @@ export default function Settings() {
             <p className="font-ui text-xs text-muted-foreground mb-1">ستختم القرآن خلال</p>
             <p className="font-ui text-xl font-bold text-primary">{toArabicNumeral(days)} يوم</p>
           </div>
+          <Link
+            to="/memorize"
+            className="flex items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 font-ui text-sm text-primary hover:bg-primary/10 transition-colors"
+          >
+            <Brain className="h-4 w-4" />
+            انتقل إلى صفحة الحفظ
+          </Link>
         </div>
 
         {/* الحساب */}

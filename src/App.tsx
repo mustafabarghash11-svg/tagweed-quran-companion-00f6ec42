@@ -28,6 +28,7 @@ const App = () => (
             <Route path="/surah" element={<SurahBrowser />} />
             <Route path="/juz" element={<JuzBrowser />} />
             <Route path="/ai" element={<TagweedAI />} />
+            <Route path="/quiz" element={<Quiz />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

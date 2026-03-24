@@ -11,6 +11,7 @@ const navItems = [
   { to: '/surah', icon: BookOpen, label: 'تصفح بالسورة', desc: '١١٤ سورة' },
   { to: '/juz', icon: Layers, label: 'تصفح بالجزء', desc: '٣٠ جزء' },
   { to: '/ai', icon: Sparkles, label: 'تجويد AI', desc: 'اسأل سؤالك الديني' },
+  { to: '/quiz', icon: HelpCircle, label: 'اختبر معلوماتك', desc: 'أسئلة دينية' },
 ];
 
 export default function Index() {

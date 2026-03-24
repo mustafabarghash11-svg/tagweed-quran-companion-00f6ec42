@@ -21,7 +21,9 @@ import ProfilePage from "./pages/ProfilePage.tsx";
 import LoginPage from "./pages/LoginPage.tsx";
 import SignupPage from "./pages/SignupPage.tsx";
 import Settings from "./pages/Settings.tsx";
-
+import PrayerTimesPage from "./pages/PrayerTimesPage.tsx";
+// ...
+<Route path="/prayer-times" element={<PrayerTimesPage />} />
 const queryClient = new QueryClient();
 
 const App = () => (

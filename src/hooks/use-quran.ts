@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { fetchAllSurahs, fetchPage, fetchJuz } from '@/lib/quran-api';
 
 export function useSurahs() {
@@ -10,6 +11,29 @@ export function useSurahs() {
 }
 
 export function useQuranPage(pageNumber: number) {
+  const queryClient = useQueryClient();
+
+  // prefetch الصفحة السابقة والتالية في الخلفية
+  useEffect(() => {
+    const prev = pageNumber - 1;
+    const next = pageNumber + 1;
+
+    if (prev >= 1) {
+      queryClient.prefetchQuery({
+        queryKey: ['quran-page', prev],
+        queryFn: () => fetchPage(prev),
+        staleTime: Infinity,
+      });
+    }
+    if (next <= 604) {
+      queryClient.prefetchQuery({
+        queryKey: ['quran-page', next],
+        queryFn: () => fetchPage(next),
+        staleTime: Infinity,
+      });
+    }
+  }, [pageNumber, queryClient]);
+
   return useQuery({
     queryKey: ['quran-page', pageNumber],
     queryFn: () => fetchPage(pageNumber),

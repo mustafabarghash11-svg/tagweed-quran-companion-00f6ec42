@@ -10,10 +10,18 @@ import { useAuth } from "@/hooks/use-auth";
 
 export default function Auth() {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate("/", { replace: true });
+    }
+  }, [user, authLoading, navigate]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();

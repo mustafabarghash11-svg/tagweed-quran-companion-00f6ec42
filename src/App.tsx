@@ -9,6 +9,7 @@ import QuranReader from "./pages/QuranReader.tsx";
 import SurahBrowser from "./pages/SurahBrowser.tsx";
 import JuzBrowser from "./pages/JuzBrowser.tsx";
 import TagweedAI from "./pages/TagweedAI.tsx";
+import Quiz from "./pages/Quiz.tsx";
 import Auth from "./pages/Auth.tsx";
 import NotFound from "./pages/NotFound.tsx";
 

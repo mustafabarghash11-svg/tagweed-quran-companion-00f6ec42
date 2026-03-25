@@ -1,11 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Home, BookOpen, Sparkles, Settings, Clock, HelpCircle, ChevronUp, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
+import { Home, BookOpen, Sparkles, Settings, Clock, HelpCircle, ChevronUp, ChevronDown, BookMarked } from 'lucide-react';
 
 const navItems = [
   { path: '/', icon: Home, label: 'الرئيسية' },
   { path: '/search', icon: BookOpen, label: 'البحث' },
   { path: '/quiz', icon: HelpCircle, label: 'أسئلة' },
+  { path: '/hadith', icon: BookMarked, label: 'أحاديث' },  // <-- جديد
   { path: '/ai', icon: Sparkles, label: 'AI' },
   { path: '/prayer-times', icon: Clock, label: 'الصلاة' },
   { path: '/settings', icon: Settings, label: 'الإعدادات' },

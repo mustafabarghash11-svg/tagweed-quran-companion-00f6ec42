@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -57,9 +57,10 @@ export default function Quiz() {
   const [answered, setAnswered] = useState(false);
   const [scores, setScores] = useState<CategoryScore[]>([]);
   const [totalPoints, setTotalPoints] = useState(0);
-  const [questionsAnswered, setQuestionsAnswered] = useState(0);
 
-  // Load scores
+  // Track asked questions per session to avoid repetition
+  const askedQuestionsRef = useRef<Record<string, string[]>>({});
+
   useEffect(() => {
     if (!user) return;
     loadScores();
@@ -67,11 +68,15 @@ export default function Quiz() {
 
   const loadScores = async () => {
     if (!user) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("quiz_scores")
       .select("*")
       .eq("user_id", user.id);
 
+    if (error) {
+      console.error("Failed to load scores:", error);
+      return;
+    }
     if (data) {
       setScores(data as CategoryScore[]);
       setTotalPoints(data.reduce((sum: number, s: any) => sum + s.total_points, 0));
@@ -84,14 +89,24 @@ export default function Quiz() {
     setSelectedAnswer(null);
     setAnswered(false);
 
+    const previousQuestions = askedQuestionsRef.current[category] || [];
+
     try {
       const { data, error } = await supabase.functions.invoke("quiz-generate", {
-        body: { category },
+        body: { category, previous_questions: previousQuestions.slice(-15) },
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setQuestion(data as QuizQuestion);
+
+      const q = data as QuizQuestion;
+      setQuestion(q);
+
+      // Track this question
+      if (!askedQuestionsRef.current[category]) {
+        askedQuestionsRef.current[category] = [];
+      }
+      askedQuestionsRef.current[category].push(q.question);
     } catch (err: any) {
       toast.error(err.message || "حدث خطأ في تحميل السؤال");
       setScreen("home");
@@ -119,39 +134,52 @@ export default function Quiz() {
     const isCorrect = index === question.correct_index;
     const points = isCorrect ? 1 : 0;
 
-    setQuestionsAnswered((p) => p + 1);
     if (isCorrect) setTotalPoints((p) => p + 1);
 
-    // Upsert score
-    const existing = scores.find((s) => s.category === selectedCategory);
-    if (existing) {
-      await supabase
+    // Fetch fresh scores from DB to avoid stale data
+    const { data: freshScores } = await supabase
+      .from("quiz_scores")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("category", selectedCategory)
+      .maybeSingle();
+
+    if (freshScores) {
+      const { error } = await supabase
         .from("quiz_scores")
         .update({
-          total_questions: existing.total_questions + 1,
-          correct_answers: existing.correct_answers + points,
-          total_points: existing.total_points + points,
+          total_questions: freshScores.total_questions + 1,
+          correct_answers: freshScores.correct_answers + points,
+          total_points: freshScores.total_points + points,
           updated_at: new Date().toISOString(),
         })
         .eq("user_id", user.id)
         .eq("category", selectedCategory);
+
+      if (error) {
+        console.error("Failed to update score:", error);
+        toast.error("حدث خطأ في حفظ النتيجة");
+      }
     } else {
-      await supabase.from("quiz_scores").insert({
+      const { error } = await supabase.from("quiz_scores").insert({
         user_id: user.id,
         category: selectedCategory,
         total_questions: 1,
         correct_answers: points,
         total_points: points,
       });
+
+      if (error) {
+        console.error("Failed to insert score:", error);
+        toast.error("حدث خطأ في حفظ النتيجة");
+      }
     }
 
     await loadScores();
     setScreen("result");
   };
 
-  const getCategoryScore = (catId: string) => {
-    return scores.find((s) => s.category === catId);
-  };
+  const getCategoryScore = (catId: string) => scores.find((s) => s.category === catId);
 
   const optionLabels = ["أ", "ب", "ج", "د"];
 
@@ -159,7 +187,6 @@ export default function Quiz() {
   if (screen === "home") {
     return (
       <div className="min-h-screen pb-16" dir="rtl">
-        {/* Header */}
         <div className="flex items-center justify-between px-4 pt-4">
           <Link to="/">
             <Button size="icon" variant="ghost" className="h-9 w-9 rounded-full">
@@ -178,9 +205,7 @@ export default function Quiz() {
           <h1 className="font-quran text-4xl text-primary" style={{ lineHeight: "1.1" }}>
             اختبر معلوماتك
           </h1>
-          <p className="font-ui text-sm text-muted-foreground">
-            اختر فئة وابدأ الاختبار
-          </p>
+          <p className="font-ui text-sm text-muted-foreground">اختر فئة وابدأ الاختبار</p>
         </header>
 
         <div className="mx-auto max-w-lg space-y-3 px-4">
@@ -211,7 +236,6 @@ export default function Quiz() {
           })}
         </div>
 
-        {/* Overall stats */}
         {scores.length > 0 && (
           <div className="mx-auto mt-8 max-w-lg px-4">
             <div className="rounded-xl border border-primary/10 bg-card p-5 shadow-sm">
@@ -251,7 +275,6 @@ export default function Quiz() {
   // Quiz screen
   if (screen === "quiz") {
     const catInfo = CATEGORIES.find((c) => c.id === selectedCategory);
-
     return (
       <div className="flex min-h-screen flex-col items-center px-4 pt-8" dir="rtl">
         <div className="w-full max-w-lg">
@@ -280,11 +303,8 @@ export default function Quiz() {
           ) : question ? (
             <div className="space-y-4">
               <div className="rounded-xl border border-primary/10 bg-card p-5 shadow-sm">
-                <p className="font-ui text-base font-semibold leading-relaxed">
-                  {question.question}
-                </p>
+                <p className="font-ui text-base font-semibold leading-relaxed">{question.question}</p>
               </div>
-
               <div className="space-y-2.5">
                 {question.options.map((option, i) => (
                   <button
@@ -332,7 +352,6 @@ export default function Quiz() {
   // Result screen
   if (screen === "result" && question) {
     const isCorrect = selectedAnswer === question.correct_index;
-
     return (
       <div className="flex min-h-screen flex-col items-center px-4 pt-12" dir="rtl">
         <div className="w-full max-w-lg space-y-6">
@@ -360,9 +379,7 @@ export default function Quiz() {
 
           <div className="rounded-xl border border-primary/10 bg-card p-5 shadow-sm">
             <h3 className="mb-2 font-ui text-sm font-bold text-primary">الشرح والمصدر</h3>
-            <p className="font-ui text-sm leading-relaxed text-foreground">
-              {question.explanation}
-            </p>
+            <p className="font-ui text-sm leading-relaxed text-foreground">{question.explanation}</p>
           </div>
 
           <div className="flex gap-3">

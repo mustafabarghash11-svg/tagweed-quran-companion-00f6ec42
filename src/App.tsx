@@ -22,8 +22,7 @@ import LoginPage from "./pages/LoginPage.tsx";
 import SignupPage from "./pages/SignupPage.tsx";
 import Settings from "./pages/Settings.tsx";
 import PrayerTimesPage from "./pages/PrayerTimesPage.tsx";
-// ...
-<Route path="/prayer-times" element={<PrayerTimesPage />} />
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -49,6 +48,7 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/prayer-times" element={<PrayerTimesPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <BottomNav />

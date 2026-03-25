@@ -1,12 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, BookOpen, Brain, Sparkles, Settings, Clock } from 'lucide-react'; // أضف Clock
+import { Home, BookOpen, Brain, Sparkles, Settings, Clock } from 'lucide-react';
 
 const navItems = [
   { path: '/', icon: Home, label: 'الرئيسية' },
   { path: '/search', icon: BookOpen, label: 'البحث' },
   { path: '/memorize', icon: Brain, label: 'الحفظ' },
   { path: '/ai', icon: Sparkles, label: 'AI' },
-  { path: '/prayer-times', icon: Clock, label: 'الصلاة' }, // <-- أضف هذا السطر
+  { path: '/prayer-times', icon: Clock, label: 'الصلاة' },
   { path: '/settings', icon: Settings, label: 'الإعدادات' },
 ];
 
@@ -32,22 +32,6 @@ export function BottomNav() {
             >
               <Icon className="h-5 w-5" />
               <span className="font-ui text-[11px] font-medium">{item.label}</span>
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
-  );
-}                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {isActive && (
-                <span className="absolute top-0 inset-x-0 mx-auto h-0.5 w-6 rounded-full bg-primary" />
-              )}
-              <item.icon className={`h-5 w-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
-              <span className={`font-ui text-[10px] ${isActive ? 'font-bold' : ''}`}>
-                {item.label}
-              </span>
             </Link>
           );
         })}

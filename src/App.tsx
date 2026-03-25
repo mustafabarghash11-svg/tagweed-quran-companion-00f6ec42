@@ -23,6 +23,8 @@ import LoginPage from "./pages/LoginPage.tsx";
 import SignupPage from "./pages/SignupPage.tsx";
 import Settings from "./pages/Settings.tsx";
 import PrayerTimesPage from "./pages/PrayerTimesPage.tsx";
+import HadithPage from "./pages/HadithPage.tsx";
+import HadithViewer from "./pages/HadithViewer.tsx";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +56,8 @@ const App = () => {
               <Route path="/settings" element={<Settings />} />
               <Route path="/prayer-times" element={<PrayerTimesPage />} />
               <Route path="*" element={<NotFound />} />
+              <Route path="/hadith" element={<HadithPage />} />
+              <Route path="/hadith/view/:id" element={<HadithViewer />} />
             </Routes>
             <BottomNav 
               isVisible={bottomNavVisible} 

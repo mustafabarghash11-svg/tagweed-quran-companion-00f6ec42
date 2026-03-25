@@ -26,6 +26,8 @@ const exampleQueries = [
   'حديث عن بر الوالدين',
   'حديث عن حسن الخلق',
   'حديث عن العلم',
+  'حديث عن التوبة',
+  'حديث عن الجنة',
 ];
 
 export default function HadithPage() {
@@ -46,27 +48,14 @@ export default function HadithPage() {
     setResult(null);
 
     try {
-      // جرب هذا المسار أولاً (Supabase Edge Function)
-      let response = await fetch('/functions/v1/tagweed-ai', {
+      // استدعاء API الأحاديث الجديد
+      const response = await fetch('/functions/v1/hadith-api', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          type: 'hadith_search',
-          query: searchQuery 
-        }),
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: searchQuery }),
       });
-
-      // إذا فشل، جرب المسار البديل
-      if (!response.ok) {
-        response = await fetch('/api/tagweed-ai', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            type: 'hadith_search',
-            query: searchQuery 
-          }),
-        });
-      }
 
       const data = await response.json();
       
@@ -75,11 +64,11 @@ export default function HadithPage() {
         toast.success('تم العثور على الحديث');
       } else {
         setError(data.message || 'لم أتمكن من العثور على حديث مطابق');
-        setSuggestions(exampleQueries.filter(q => q !== searchQuery).slice(0, 3));
+        setSuggestions(exampleQueries.filter(q => q !== searchQuery).slice(0, 4));
       }
     } catch (err) {
       console.error('Search error:', err);
-      setError('حدث خطأ في الاتصال. تأكد من اتصالك بالإنترنت وأن الـ AI يعمل بشكل صحيح.');
+      setError('حدث خطأ في الاتصال. تأكد من أن خادم الأحاديث يعمل بشكل صحيح.');
       toast.error('فشل البحث');
     } finally {
       setLoading(false);
@@ -104,8 +93,39 @@ export default function HadithPage() {
     }
   };
 
+  const shareHadith = () => {
+    if (result) {
+      const text = `عن ${result.narrator} قال: ${result.text}\n\nالمصدر: ${result.source} رقم ${result.number}`;
+      if (navigator.share) {
+        navigator.share({
+          title: 'حديث نبوي شريف',
+          text: text,
+        });
+      } else {
+        copyHadith();
+      }
+    }
+  };
+
+  const saveHadith = () => {
+    if (result) {
+      // حفظ في localStorage مؤقتاً
+      const saved = localStorage.getItem('saved-hadiths');
+      const savedHadiths = saved ? JSON.parse(saved) : [];
+      const exists = savedHadiths.some((h: any) => h.number === result.number && h.source === result.source);
+      
+      if (!exists) {
+        savedHadiths.push(result);
+        localStorage.setItem('saved-hadiths', JSON.stringify(savedHadiths));
+        toast.success('تم حفظ الحديث');
+      } else {
+        toast.info('الحديث محفوظ مسبقاً');
+      }
+    }
+  };
+
   return (
-    <div className="min-h-screen pb-24 bg-background" dir="rtl">
+    <div className="min-h-screen pb-24 bg-gradient-to-b from-background to-primary/5" dir="rtl">
       <header className="sticky top-0 z-50 border-b border-primary/20 bg-card/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
           <Link to="/" className="text-primary transition-transform hover:scale-105">
@@ -196,8 +216,9 @@ export default function HadithPage() {
 
         {/* Result State */}
         {result && !loading && (
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-primary/20 bg-card p-5 space-y-4">
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-5 duration-300">
+            <div className="rounded-2xl border border-primary/20 bg-card p-5 space-y-4 shadow-lg">
+              {/* Header */}
               <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-primary/10">
                 <span className="rounded-full bg-primary/10 px-3 py-1 font-ui text-sm font-bold text-primary">
                   {result.source} • رقم {result.number}
@@ -206,47 +227,54 @@ export default function HadithPage() {
                   <span className={`rounded-full px-3 py-1 font-ui text-sm font-bold ${
                     result.grade.includes('صحيح') 
                       ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
-                      : 'bg-amber-100 text-amber-700'
+                      : result.grade.includes('حسن')
+                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
+                      : 'bg-muted text-muted-foreground'
                   }`}>
                     {result.grade}
                   </span>
                 )}
               </div>
 
+              {/* Narrator */}
               <div>
                 <p className="font-ui text-xs text-muted-foreground mb-1">عن</p>
                 <p className="font-ui text-base font-semibold">{result.narrator}</p>
               </div>
 
+              {/* Hadith Text */}
               <div className="bg-muted/30 rounded-xl p-5">
                 <p className="font-ui text-lg leading-loose text-foreground">
                   {result.text}
                 </p>
               </div>
 
+              {/* Explanation */}
               {result.explanation && (
                 <div className="pt-3 border-t border-primary/10">
-                  <p className="font-ui text-xs text-muted-foreground mb-1">شرح مختصر</p>
+                  <p className="font-ui text-xs text-muted-foreground mb-1">📝 شرح مختصر</p>
                   <p className="font-ui text-sm text-muted-foreground">{result.explanation}</p>
                 </div>
               )}
 
-              <div className="flex gap-2 pt-2">
+              {/* Actions */}
+              <div className="flex gap-2 pt-2 flex-wrap">
                 <Button variant="outline" size="sm" onClick={copyHadith} className="gap-2">
                   <Copy className="h-4 w-4" />
                   نسخ
                 </Button>
-                <Button variant="outline" size="sm" className="gap-2">
+                <Button variant="outline" size="sm" onClick={shareHadith} className="gap-2">
                   <Share2 className="h-4 w-4" />
                   مشاركة
                 </Button>
-                <Button variant="outline" size="sm" className="gap-2">
+                <Button variant="outline" size="sm" onClick={saveHadith} className="gap-2">
                   <Heart className="h-4 w-4" />
                   حفظ
                 </Button>
               </div>
             </div>
 
+            {/* Try Another */}
             <div className="text-center pt-4">
               <button
                 onClick={() => {
@@ -254,7 +282,7 @@ export default function HadithPage() {
                   setResult(null);
                   setError(null);
                 }}
-                className="font-ui text-sm text-primary hover:underline"
+                className="font-ui text-sm text-primary hover:underline flex items-center gap-1 mx-auto"
               >
                 ابحث عن حديث آخر ←
               </button>
@@ -266,7 +294,7 @@ export default function HadithPage() {
         {!result && !loading && !error && (
           <div className="mt-8">
             <p className="font-ui text-sm text-muted-foreground text-center mb-4">
-              جرب البحث عن:
+              🔍 جرب البحث عن:
             </p>
             <div className="grid grid-cols-2 gap-3">
               {exampleQueries.map((example) => (
@@ -276,7 +304,7 @@ export default function HadithPage() {
                     setQuery(example);
                     searchHadith(example);
                   }}
-                  className="flex items-center gap-2 rounded-xl border border-primary/10 bg-card p-3 text-right hover:bg-primary/5 transition-colors"
+                  className="flex items-center gap-2 rounded-xl border border-primary/10 bg-card p-3 text-right hover:bg-primary/5 hover:border-primary/30 transition-all active:scale-95"
                 >
                   <MessageSquare className="h-4 w-4 text-primary flex-shrink-0" />
                   <span className="font-ui text-sm">{example}</span>
@@ -288,4 +316,4 @@ export default function HadithPage() {
       </div>
     </div>
   );
-}
+  }

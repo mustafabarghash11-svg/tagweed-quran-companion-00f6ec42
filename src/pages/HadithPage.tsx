@@ -1,200 +1,290 @@
-import { useState } from 'react';
+// src/pages/HadithPage.tsx
+import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Book, Search, Loader2, BookMarked, ChevronLeft } from 'lucide-react';
+import { 
+  ChevronRight, Search, Loader2, Sparkles, 
+  MessageSquare, Copy, Share2, Heart, AlertCircle,
+  Send, Brain, BookOpen
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { toArabicNumeral } from '@/lib/quran-api';
-import { COLLECTIONS, searchHadiths, Hadith } from '@/data/hadithData';
+
+interface HadithResult {
+  text: string;
+  narrator: string;
+  source: string;
+  number: number;
+  grade: string;
+  explanation?: string;
+}
 
 export default function HadithPage() {
-  const [selectedBook, setSelectedBook] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Hadith[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const HADITHS_PER_PAGE = 20;
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<HadithResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const currentCollection = COLLECTIONS.find(c => c.id === selectedBook);
-  const hadiths = currentCollection 
-    ? currentCollection.getHadiths(currentPage, HADITHS_PER_PAGE)
-    : [];
+  // اقتراحات للبحث
+  const exampleQueries = [
+    'حديث عن الرحمة',
+    'حديث عن الصلاة',
+    'حديث عن الصدقة',
+    'حديث عن بر الوالدين',
+    'حديث عن حسن الخلق',
+    'حديث عن العلم',
+    'حديث عن التوبة',
+    'حديث عن الجنة',
+  ];
 
-  const handleSearch = () => {
-    if (!searchQuery.trim() || searchQuery.length < 2) {
-      toast.warning('أدخل حرفين على الأقل للبحث');
+  const searchHadith = async (searchQuery: string) => {
+    if (!searchQuery.trim()) {
+      toast.warning('اكتب وصفاً للحديث الذي تبحث عنه');
       return;
     }
-    setSearching(true);
-    setTimeout(() => {
-      const results = searchHadiths(searchQuery);
-      setSearchResults(results);
-      setSearching(false);
-    }, 100);
+
+    setLoading(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      // استدعاء دالة الذكاء الاصطناعي
+      const response = await fetch('/api/ai/hadith', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          query: searchQuery,
+          type: 'hadith_search'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('فشل الاتصال بالذكاء الاصطناعي');
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.hadith) {
+        setResult(data.hadith);
+        toast.success('تم العثور على الحديث');
+      } else {
+        setError(data.message || 'لم أتمكن من العثور على حديث مطابق. حاول بصيغة أخرى.');
+        // إظهار اقتراحات
+        setSuggestions(exampleQueries.filter(q => q !== searchQuery).slice(0, 3));
+      }
+    } catch (err) {
+      setError('حدث خطأ في الاتصال. تأكد من اتصالك بالإنترنت.');
+      toast.error('فشل البحث');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (selectedBook && currentCollection) {
-    const totalPages = Math.ceil(currentCollection.count / HADITHS_PER_PAGE);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    searchHadith(query);
+  };
 
-    return (
-      <div className="min-h-screen pb-24" dir="rtl">
-        <header className="sticky top-0 z-50 border-b border-primary/20 bg-card/95 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
-            <button onClick={() => setSelectedBook(null)} className="text-primary">
-              <ChevronRight className="h-5 w-5" />
-            </button>
-            <h1 className="font-ui text-lg font-bold">{currentCollection.name}</h1>
-            <div className="flex-1" />
-          </div>
-        </header>
+  const handleSuggestionClick = (suggestion: string) => {
+    setQuery(suggestion);
+    searchHadith(suggestion);
+  };
 
-        <div className="mx-auto max-w-2xl px-4 py-4">
-          <div className="space-y-3">
-            {hadiths.map((hadith) => (
-              <Link
-                key={hadith.id}
-                to={`/hadith/view/${hadith.id}`}
-                className="block rounded-xl border border-primary/10 bg-card p-4 hover:bg-primary/5 transition-colors"
-              >
-                <div className="flex justify-between items-start gap-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap mb-2">
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
-                        رقم {hadith.hadithNumber}
-                      </span>
-                      {hadith.grade && (
-                        <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/30 px-2 py-0.5 text-xs font-medium text-emerald-600">
-                          {hadith.grade}
-                        </span>
-                      )}
-                    </div>
-                    <p className="font-ui text-sm font-semibold mb-1">عن {hadith.narrator}</p>
-                    <p className="font-ui text-sm text-muted-foreground line-clamp-2">
-                      {hadith.text.substring(0, 120)}...
-                    </p>
-                  </div>
-                  <ChevronLeft className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-2" />
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-6">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-              >
-                السابق
-              </Button>
-              <span className="font-ui text-sm">
-                {toArabicNumeral(currentPage)} / {toArabicNumeral(totalPages)}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-              >
-                التالي
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
+  const copyHadith = () => {
+    if (result) {
+      const text = `عن ${result.narrator} قال: ${result.text}\n\nالمصدر: ${result.source} رقم ${result.number}\nالدرجة: ${result.grade}`;
+      navigator.clipboard.writeText(text);
+      toast.success('تم نسخ الحديث');
+    }
+  };
 
   return (
-    <div className="min-h-screen pb-24" dir="rtl">
+    <div className="min-h-screen pb-24 bg-gradient-to-b from-background to-primary/5" dir="rtl">
+      {/* Header */}
       <header className="sticky top-0 z-50 border-b border-primary/20 bg-card/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
-          <Link to="/" className="text-primary">
+          <Link to="/" className="text-primary transition-transform hover:scale-105">
             <ChevronRight className="h-5 w-5" />
           </Link>
-          <h1 className="font-ui text-lg font-bold">موسوعة الأحاديث النبوية</h1>
+          <h1 className="font-ui text-lg font-bold flex items-center gap-2">
+            <Brain className="h-5 w-5 text-primary" />
+            موسوعة الأحاديث
+          </h1>
           <div className="w-9" />
         </div>
       </header>
 
-      <div className="mx-auto max-w-2xl px-4 py-4">
-        {/* قسم البحث */}
-        <div className="mb-6">
-          <div className="flex gap-2">
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ابحث في الأحاديث (بالنص أو الراوي أو الكتاب)..."
-              className="flex-1 font-ui"
-              dir="rtl"
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            />
-            <Button onClick={handleSearch} disabled={searching}>
-              {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-            </Button>
+      <div className="mx-auto max-w-2xl px-4 py-6">
+        {/* Hero Section */}
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <div className="rounded-full bg-primary/10 p-4">
+              <Sparkles className="h-8 w-8 text-primary" />
+            </div>
           </div>
+          <h2 className="font-ui text-2xl font-bold mb-2">ابحث في الأحاديث النبوية</h2>
+          <p className="font-ui text-muted-foreground">
+            اكتب وصفاً للحديث الذي تبحث عنه، وسأقوم بإيجاده لك
+          </p>
         </div>
 
-        {/* نتائج البحث */}
-        {searchResults.length > 0 && (
-          <div className="mb-6 space-y-3">
-            <h2 className="font-ui text-sm font-bold text-primary">نتائج البحث ({toArabicNumeral(searchResults.length)})</h2>
-            {searchResults.map((hadith) => (
-              <Link
-                key={hadith.id}
-                to={`/hadith/view/${hadith.id}`}
-                className="block rounded-xl border border-primary/10 bg-card p-4 hover:bg-primary/5 transition-colors"
-              >
-                <div className="flex justify-between items-start gap-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap mb-2">
-                      <span className="text-xs text-primary font-bold">{hadith.collection}</span>
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
-                        رقم {hadith.hadithNumber}
-                      </span>
-                    </div>
-                    <p className="font-ui text-sm text-muted-foreground line-clamp-2">
-                      {hadith.text.substring(0, 100)}...
-                    </p>
-                  </div>
-                  <ChevronLeft className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
-                </div>
-              </Link>
-            ))}
-            <Button variant="outline" onClick={() => setSearchResults([])} className="w-full">
-              إخفاء النتائج
+        {/* Search Form */}
+        <form onSubmit={handleSubmit} className="mb-6">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="مثال: أعطني حديثاً عن الرحمة"
+                className="pr-10 py-6 font-ui text-right text-base"
+                dir="rtl"
+                disabled={loading}
+              />
+            </div>
+            <Button 
+              type="submit" 
+              disabled={loading || !query.trim()}
+              className="px-6 gap-2"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+              بحث
             </Button>
+          </div>
+        </form>
+
+        {/* Loading State */}
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-12 gap-4">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="font-ui text-muted-foreground">جاري البحث عن الحديث...</p>
           </div>
         )}
 
-        {/* قائمة الكتب */}
-        <div>
-          <h2 className="font-ui text-base font-bold mb-3 flex items-center gap-2">
-            <Book className="h-4 w-4 text-primary" />
-            كتب الحديث الستة
-          </h2>
-          <div className="grid grid-cols-2 gap-3">
-            {COLLECTIONS.map((book) => (
-              <button
-                key={book.id}
-                onClick={() => setSelectedBook(book.id)}
-                className="rounded-xl border border-primary/10 bg-card p-4 text-right hover:shadow-md transition-all active:scale-[0.98]"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <BookMarked className="h-5 w-5 text-primary" />
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
-                    {toArabicNumeral(book.count)}
-                  </span>
+        {/* Error State */}
+        {error && !loading && (
+          <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-5 text-center space-y-3">
+            <AlertCircle className="mx-auto h-8 w-8 text-destructive" />
+            <p className="font-ui text-destructive">{error}</p>
+            {suggestions.length > 0 && (
+              <div className="space-y-2">
+                <p className="font-ui text-sm text-muted-foreground">جرب هذه العبارات:</p>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => handleSuggestionClick(s)}
+                      className="rounded-full border border-primary/20 px-3 py-1 text-sm hover:bg-primary/10 transition-colors"
+                    >
+                      {s}
+                    </button>
+                  ))}
                 </div>
-                <p className="font-ui font-bold text-base">{book.name}</p>
-                <p className="font-ui text-xs text-muted-foreground mt-1">حديث شريف</p>
-              </button>
-            ))}
+              </div>
+            )}
           </div>
-        </div>
+        )}
+
+        {/* Result State */}
+        {result && !loading && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-primary/20 bg-card p-5 space-y-4">
+              {/* Header */}
+              <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-primary/10">
+                <span className="rounded-full bg-primary/10 px-3 py-1 font-ui text-sm font-bold text-primary">
+                  {result.source} • رقم {result.number}
+                </span>
+                {result.grade && (
+                  <span className={`rounded-full px-3 py-1 font-ui text-sm font-bold ${
+                    result.grade.includes('صحيح') 
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
+                      : 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
+                  }`}>
+                    {result.grade}
+                  </span>
+                )}
+              </div>
+
+              {/* Narrator */}
+              <div>
+                <p className="font-ui text-xs text-muted-foreground mb-1">عن</p>
+                <p className="font-ui text-base font-semibold">{result.narrator}</p>
+              </div>
+
+              {/* Hadith Text */}
+              <div className="bg-muted/30 rounded-xl p-5">
+                <p className="font-ui text-lg leading-loose text-foreground">
+                  {result.text}
+                </p>
+              </div>
+
+              {/* Explanation (if available) */}
+              {result.explanation && (
+                <div className="pt-3 border-t border-primary/10">
+                  <p className="font-ui text-xs text-muted-foreground mb-1">شرح مختصر</p>
+                  <p className="font-ui text-sm text-muted-foreground">{result.explanation}</p>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" size="sm" onClick={copyHadith} className="gap-2">
+                  <Copy className="h-4 w-4" />
+                  نسخ
+                </Button>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Share2 className="h-4 w-4" />
+                  مشاركة
+                </Button>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Heart className="h-4 w-4" />
+                  حفظ
+                </Button>
+              </div>
+            </div>
+
+            {/* Try Another */}
+            <div className="text-center pt-4">
+              <button
+                onClick={() => setQuery('')}
+                className="font-ui text-sm text-primary hover:underline"
+              >
+                ابحث عن حديث آخر ←
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Suggestions Cards (when no result and not searching) */}
+        {!result && !loading && !error && (
+          <div className="mt-8">
+            <p className="font-ui text-sm text-muted-foreground text-center mb-4">
+              جرب البحث عن:
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {exampleQueries.map((example) => (
+                <button
+                  key={example}
+                  onClick={() => {
+                    setQuery(example);
+                    searchHadith(example);
+                  }}
+                  className="flex items-center gap-2 rounded-xl border border-primary/10 bg-card p-3 text-right hover:bg-primary/5 transition-colors"
+                >
+                  <MessageSquare className="h-4 w-4 text-primary flex-shrink-0" />
+                  <span className="font-ui text-sm">{example}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

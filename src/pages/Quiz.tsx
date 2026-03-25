@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,14 +7,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { toArabicNumeral } from "@/lib/quran-api";
-
-// Types
-interface QuizQuestion {
-  question: string;
-  options: string[];
-  correct_index: number;
-  explanation: string;
-}
+import { QuizQuestion, getRandomQuestions } from "@/data/quizQuestions";
 
 // Categories
 const CATEGORIES = [
@@ -35,7 +28,6 @@ const DIFFICULTIES = [
 type Difficulty = "easy" | "medium" | "hard";
 
 const optionLabels = ["أ", "ب", "ج", "د"];
-
 type Screen = "home" | "setup" | "quiz" | "result";
 
 export default function Quiz() {
@@ -50,34 +42,27 @@ export default function Quiz() {
   const [sessionTotal, setSessionTotal] = useState(0);
   const [previousQuestions, setPreviousQuestions] = useState<string[]>([]);
 
-  const fetchQuestion = async (cat: string, diff: Difficulty, prevQuestions: string[]) => {
+  const fetchQuestion = useCallback((cat: string, diff: Difficulty, prevIds: string[]) => {
     setLoadingQuestion(true);
     setQuestion(null);
     setSelectedAnswer(null);
     setAnswered(false);
 
     try {
-      const response = await fetch("/api/quiz-question", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category: cat,
-          difficulty: diff,
-          previousQuestions: prevQuestions.slice(-10),
-        }),
-      });
-
-      if (!response.ok) throw new Error("فشل في تحميل السؤال");
-
-      const data = await response.json();
-      setQuestion(data);
-    } catch (err: any) {
-      toast.error(err.message || "حدث خطأ في تحميل السؤال");
+      const questions = getRandomQuestions(cat, diff, 1, prevIds);
+      if (questions.length === 0) {
+        toast.info("انتهت جميع الأسئلة! ابدأ جولة جديدة");
+        setScreen("home");
+        return;
+      }
+      setQuestion(questions[0]);
+    } catch (err) {
+      toast.error("حدث خطأ في تحميل السؤال");
       setScreen("home");
     } finally {
       setLoadingQuestion(false);
     }
-  };
+  }, []);
 
   const startSetup = (catId: string) => {
     setSelectedCategory(catId);
@@ -103,9 +88,7 @@ export default function Quiz() {
       setSessionCorrect(prev => prev + 1);
     }
     
-    // إضافة السؤال للقائمة لمنع التكرار
-    setPreviousQuestions(prev => [...prev, question.question]);
-    
+    setPreviousQuestions(prev => [...prev, question.id]);
     setScreen("result");
   };
 
@@ -174,7 +157,6 @@ export default function Quiz() {
             <h2 className="font-ui text-lg font-bold">{catInfo?.label}</h2>
           </div>
 
-          {/* Difficulty */}
           <div className="space-y-2">
             <p className="font-ui text-sm font-bold">مستوى الصعوبة</p>
             <div className="grid grid-cols-3 gap-2">
@@ -234,7 +216,7 @@ export default function Quiz() {
           {loadingQuestion ? (
             <div className="flex flex-col items-center gap-4 py-20">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="font-ui text-sm text-muted-foreground">جاري إنشاء السؤال...</p>
+              <p className="font-ui text-sm text-muted-foreground">جاري تحميل السؤال...</p>
             </div>
           ) : question ? (
             <div className="space-y-4">
@@ -314,7 +296,6 @@ export default function Quiz() {
             )}
           </div>
 
-          {/* Session stats */}
           <div className="grid grid-cols-2 gap-3 text-center">
             <div className="rounded-xl bg-card border border-primary/10 py-3">
               <p className="font-ui text-2xl font-bold text-primary">{toArabicNumeral(sessionTotal)}</p>
@@ -326,13 +307,11 @@ export default function Quiz() {
             </div>
           </div>
 
-          {/* Explanation */}
           <div className="rounded-xl border border-primary/10 bg-card p-5 shadow-sm">
             <h3 className="mb-2 font-ui text-sm font-bold text-primary">الشرح</h3>
             <p className="font-ui text-sm leading-relaxed">{question.explanation}</p>
           </div>
 
-          {/* Actions */}
           <div className="flex gap-3">
             <Button onClick={goToNextQuestion} className="flex-1 gap-2 py-5 font-ui active:scale-[0.97]">
               سؤال تالي <ChevronRight className="h-4 w-4" />
@@ -347,4 +326,4 @@ export default function Quiz() {
   }
 
   return null;
-    }
+  }

@@ -287,18 +287,12 @@ export function QuranPageView({ ayahs, isLoading }: QuranPageViewProps) {
 
                 {/* الآية — مزامنة التلاوة */}
                 <span
-                  className={`inline cursor-pointer select-none transition-all duration-200 rounded px-0.5 ${
+                  className={`inline transition-all duration-200 rounded px-0.5 ${
                     isCurrentAyah
                       ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
-                      : 'hover:bg-primary/5'
+                      : ''
                   }`}
                   style={{ fontSize: `${fontSize}px`, lineHeight: '3' }}
-                  onMouseDown={() => handlePressStart(ayah)}
-                  onMouseUp={handlePressEnd}
-                  onMouseLeave={handlePressEnd}
-                  onTouchStart={(e) => { e.stopPropagation(); handlePressStart(ayah); }}
-                  onTouchEnd={handlePressEnd}
-                  onTouchCancel={handlePressEnd}
                 >
                   <span className="font-quran">
                     {showTajweed ? applyTajweed(displayText) : displayText}
@@ -308,8 +302,6 @@ export function QuranPageView({ ayahs, isLoading }: QuranPageViewProps) {
                       ﴿{toArabicNumeral(ayah.numberInSurah)}﴾
                     </span>
                     <button
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onTouchStart={(e) => e.stopPropagation()}
                       onClick={() => handleAudio(ayah)}
                       className={`inline-flex h-5 w-5 items-center justify-center rounded-full transition-colors ${
                         thisIsPlaying ? 'text-primary bg-primary/15' : 'text-primary/60 hover:text-primary hover:bg-primary/10'
@@ -318,14 +310,19 @@ export function QuranPageView({ ayahs, isLoading }: QuranPageViewProps) {
                       {thisIsPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                     </button>
                     <button
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onTouchStart={(e) => e.stopPropagation()}
                       onClick={() => handleBookmark(ayah)}
                       className={`inline-flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-primary/10 ${
                         bookmarked ? 'text-primary' : 'text-primary/40 hover:text-primary'
                       }`}
                     >
                       {bookmarked ? <BookmarkCheck className="h-3 w-3" /> : <Bookmark className="h-3 w-3" />}
+                    </button>
+                    <button
+                      onClick={() => setSelectedAyah(ayah)}
+                      className="inline-flex h-5 w-5 items-center justify-center rounded-full transition-colors text-primary/40 hover:text-primary hover:bg-primary/10"
+                      title="تفسير الآية"
+                    >
+                      <BookOpen className="h-3 w-3" />
                     </button>
                   </span>
                 </span>
@@ -338,10 +335,6 @@ export function QuranPageView({ ayahs, isLoading }: QuranPageViewProps) {
         </div>
       </div>
 
-      {/* تلميح الضغط الطويل */}
-      <div className="mx-auto max-w-3xl px-4 pb-6 text-center">
-        <p className="font-ui text-[10px] text-muted-foreground/50">اضغط مطولاً على أي آية لعرض التفسير</p>
-      </div>
 
       {/* Modal التفسير */}
       {selectedAyah && <AyahModal ayah={selectedAyah} onClose={() => setSelectedAyah(null)} />}

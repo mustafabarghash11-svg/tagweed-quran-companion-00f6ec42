@@ -1,10 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, BookOpen, Brain, Sparkles, Settings, Clock } from 'lucide-react';
+import { Home, BookOpen, Sparkles, Settings, Clock, HelpCircle } from 'lucide-react';
 
 const navItems = [
   { path: '/', icon: Home, label: 'الرئيسية' },
   { path: '/search', icon: BookOpen, label: 'البحث' },
-  { path: '/memorize', icon: Brain, label: 'الحفظ' },
+  { path: '/quiz', icon: HelpCircle, label: 'أسئلة' },
   { path: '/ai', icon: Sparkles, label: 'AI' },
   { path: '/prayer-times', icon: Clock, label: 'الصلاة' },
   { path: '/settings', icon: Settings, label: 'الإعدادات' },
@@ -38,4 +38,4 @@ export function BottomNav() {
       </div>
     </nav>
   );
-}
+            }

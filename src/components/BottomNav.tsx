@@ -1,13 +1,11 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Home, BookOpen, Sparkles, Settings, Clock, HelpCircle, ChevronUp, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
-import { Home, BookOpen, Sparkles, Settings, Clock, HelpCircle, ChevronUp, ChevronDown, BookMarked } from 'lucide-react';
 
 const navItems = [
   { path: '/', icon: Home, label: 'الرئيسية' },
   { path: '/search', icon: BookOpen, label: 'البحث' },
   { path: '/quiz', icon: HelpCircle, label: 'أسئلة' },
-  { path: '/hadith', icon: BookMarked, label: 'أحاديث' },  // <-- جديد
   { path: '/ai', icon: Sparkles, label: 'AI' },
   { path: '/prayer-times', icon: Clock, label: 'الصلاة' },
   { path: '/settings', icon: Settings, label: 'الإعدادات' },
@@ -31,7 +29,6 @@ export function BottomNav({ isVisible = true, onToggle }: BottomNavProps) {
 
   return (
     <>
-      {/* زر الطفو للإخفاء/الإظهار */}
       <button
         onClick={handleToggle}
         className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-primary p-2 shadow-lg transition-all hover:bg-primary/90 active:scale-95"
@@ -44,7 +41,6 @@ export function BottomNav({ isVisible = true, onToggle }: BottomNavProps) {
         )}
       </button>
 
-      {/* القائمة السفلية */}
       <nav
         className={`fixed bottom-0 left-0 right-0 z-40 border-t border-primary/10 bg-card/95 backdrop-blur-lg transition-all duration-300 ${
           collapsed ? 'translate-y-full' : 'translate-y-0'
@@ -74,4 +70,4 @@ export function BottomNav({ isVisible = true, onToggle }: BottomNavProps) {
       </nav>
     </>
   );
-  }
+                }

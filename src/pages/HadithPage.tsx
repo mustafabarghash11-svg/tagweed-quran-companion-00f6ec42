@@ -1,93 +1,41 @@
-import { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { 
-  ChevronRight, Book, Search, Loader2, AlertCircle,
-  ChevronLeft, Copy, Share2, Heart, Bookmark
-} from 'lucide-react';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ChevronRight, Book, Search, Loader2, BookMarked, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { toArabicNumeral } from '@/lib/quran-api';
-
-// قائمة الكتب الستة
-const COLLECTIONS = [
-  { id: 'bukhari', name: 'صحيح البخاري', hadithCount: 7563, arabicName: 'الجامع المسند الصحيح' },
-  { id: 'muslim', name: 'صحيح مسلم', hadithCount: 7500, arabicName: 'المسند الصحيح المختصر' },
-  { id: 'tirmidhi', name: 'جامع الترمذي', hadithCount: 3956, arabicName: 'سنن الترمذي' },
-  { id: 'abudawud', name: 'سنن أبي داود', hadithCount: 5274, arabicName: 'سنن أبي داود' },
-  { id: 'nasai', name: 'سنن النسائي', hadithCount: 5761, arabicName: 'سنن النسائي' },
-  { id: 'ibnmajah', name: 'سنن ابن ماجه', hadithCount: 4341, arabicName: 'سنن ابن ماجه' },
-];
-
-interface Chapter {
-  id: number;
-  title: string;
-  hadiths_count: number;
-}
-
-interface Hadith {
-  id: number;
-  hadith_number: number;
-  title: string;
-  body: string;
-  narrator: string;
-  grade?: string;
-}
+import { COLLECTIONS, searchHadiths, Hadith } from '@/data/hadithData';
 
 export default function HadithPage() {
   const [selectedBook, setSelectedBook] = useState<string | null>(null);
-  const [chapters, setChapters] = useState<Chapter[]>([]);
-  const [loadingChapters, setLoadingChapters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Hadith[]>([]);
   const [searching, setSearching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const HADITHS_PER_PAGE = 20;
 
-  const API_KEY = 'YOUR_API_KEY_HERE'; // ضع مفتاح API هنا
+  const currentCollection = COLLECTIONS.find(c => c.id === selectedBook);
+  const hadiths = currentCollection 
+    ? currentCollection.getHadiths(currentPage, HADITHS_PER_PAGE)
+    : [];
 
-  const loadChapters = async (collectionId: string) => {
-    setLoadingChapters(true);
-    setError(null);
-    try {
-      const res = await fetch(`https://api.sunnah.com/v1/collections/${collectionId}/chapters`, {
-        headers: { 'X-API-Key': API_KEY }
-      });
-      if (!res.ok) throw new Error('فشل تحميل الأبواب');
-      const data = await res.json();
-      setChapters(data.data || []);
-      setSelectedBook(collectionId);
-    } catch (err) {
-      setError('حدث خطأ في تحميل الأبواب. تأكد من اتصالك بالإنترنت.');
-      toast.error('فشل تحميل الأبواب');
-    } finally {
-      setLoadingChapters(false);
-    }
-  };
-
-  const searchHadith = async () => {
-    if (!searchQuery.trim() || searchQuery.length < 3) {
-      toast.warning('أدخل 3 أحرف على الأقل للبحث');
+  const handleSearch = () => {
+    if (!searchQuery.trim() || searchQuery.length < 2) {
+      toast.warning('أدخل حرفين على الأقل للبحث');
       return;
     }
     setSearching(true);
-    setError(null);
-    try {
-      const res = await fetch(
-        `https://api.sunnah.com/v1/search?q=${encodeURIComponent(searchQuery)}&size=20`,
-        { headers: { 'X-API-Key': API_KEY } }
-      );
-      if (!res.ok) throw new Error('فشل البحث');
-      const data = await res.json();
-      setSearchResults(data.data || []);
-    } catch (err) {
-      setError('حدث خطأ في البحث');
-      toast.error('فشل البحث في الأحاديث');
-    } finally {
+    setTimeout(() => {
+      const results = searchHadiths(searchQuery);
+      setSearchResults(results);
       setSearching(false);
-    }
+    }, 100);
   };
 
-  if (selectedBook) {
+  if (selectedBook && currentCollection) {
+    const totalPages = Math.ceil(currentCollection.count / HADITHS_PER_PAGE);
+
     return (
       <div className="min-h-screen pb-24" dir="rtl">
         <header className="sticky top-0 z-50 border-b border-primary/20 bg-card/95 backdrop-blur-sm">
@@ -95,47 +43,64 @@ export default function HadithPage() {
             <button onClick={() => setSelectedBook(null)} className="text-primary">
               <ChevronRight className="h-5 w-5" />
             </button>
-            <h1 className="font-ui text-lg font-bold">
-              {COLLECTIONS.find(c => c.id === selectedBook)?.name}
-            </h1>
+            <h1 className="font-ui text-lg font-bold">{currentCollection.name}</h1>
             <div className="flex-1" />
           </div>
         </header>
 
         <div className="mx-auto max-w-2xl px-4 py-4">
-          {loadingChapters ? (
-            <div className="flex justify-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center gap-3 py-20">
-              <AlertCircle className="h-12 w-12 text-destructive" />
-              <p className="font-ui text-muted-foreground">{error}</p>
-              <Button onClick={() => loadChapters(selectedBook)}>إعادة المحاولة</Button>
-            </div>
-          ) : chapters.length === 0 ? (
-            <div className="text-center py-20 text-muted-foreground">
-              لا توجد أبواب متاحة حالياً
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {chapters.map((chapter) => (
-                <Link
-                  key={chapter.id}
-                  to={`/hadith/${selectedBook}/${chapter.id}`}
-                  className="block rounded-xl border border-primary/10 bg-card p-4 hover:bg-primary/5 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="font-ui font-semibold text-base">{chapter.title}</p>
-                      <p className="font-ui text-xs text-muted-foreground mt-1">
-                        {toArabicNumeral(chapter.hadiths_count)} حديث
-                      </p>
+          <div className="space-y-3">
+            {hadiths.map((hadith) => (
+              <Link
+                key={hadith.id}
+                to={`/hadith/view/${hadith.id}`}
+                className="block rounded-xl border border-primary/10 bg-card p-4 hover:bg-primary/5 transition-colors"
+              >
+                <div className="flex justify-between items-start gap-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+                        رقم {hadith.hadithNumber}
+                      </span>
+                      {hadith.grade && (
+                        <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/30 px-2 py-0.5 text-xs font-medium text-emerald-600">
+                          {hadith.grade}
+                        </span>
+                      )}
                     </div>
-                    <ChevronLeft className="h-5 w-5 text-muted-foreground" />
+                    <p className="font-ui text-sm font-semibold mb-1">عن {hadith.narrator}</p>
+                    <p className="font-ui text-sm text-muted-foreground line-clamp-2">
+                      {hadith.text.substring(0, 120)}...
+                    </p>
                   </div>
-                </Link>
-              ))}
+                  <ChevronLeft className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-2" />
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                السابق
+              </Button>
+              <span className="font-ui text-sm">
+                {toArabicNumeral(currentPage)} / {toArabicNumeral(totalPages)}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                التالي
+              </Button>
             </div>
           )}
         </div>
@@ -162,12 +127,12 @@ export default function HadithPage() {
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ابحث في الأحاديث..."
+              placeholder="ابحث في الأحاديث (بالنص أو الراوي أو الكتاب)..."
               className="flex-1 font-ui"
               dir="rtl"
-              onKeyDown={(e) => e.key === 'Enter' && searchHadith()}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
-            <Button onClick={searchHadith} disabled={searching}>
+            <Button onClick={handleSearch} disabled={searching}>
               {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             </Button>
           </div>
@@ -185,22 +150,23 @@ export default function HadithPage() {
               >
                 <div className="flex justify-between items-start gap-2">
                   <div className="flex-1">
-                    <p className="font-ui text-sm font-semibold text-primary mb-1">
-                      {hadith.title || `حديث رقم ${hadith.hadith_number}`}
-                    </p>
-                    <p className="font-ui text-sm line-clamp-2 text-muted-foreground">
-                      {hadith.body.substring(0, 100)}...
-                    </p>
-                    {hadith.grade && (
-                      <span className="inline-block mt-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                        {hadith.grade}
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                      <span className="text-xs text-primary font-bold">{hadith.collection}</span>
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+                        رقم {hadith.hadithNumber}
                       </span>
-                    )}
+                    </div>
+                    <p className="font-ui text-sm text-muted-foreground line-clamp-2">
+                      {hadith.text.substring(0, 100)}...
+                    </p>
                   </div>
                   <ChevronLeft className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
                 </div>
               </Link>
             ))}
+            <Button variant="outline" onClick={() => setSearchResults([])} className="w-full">
+              إخفاء النتائج
+            </Button>
           </div>
         )}
 
@@ -214,17 +180,17 @@ export default function HadithPage() {
             {COLLECTIONS.map((book) => (
               <button
                 key={book.id}
-                onClick={() => loadChapters(book.id)}
+                onClick={() => setSelectedBook(book.id)}
                 className="rounded-xl border border-primary/10 bg-card p-4 text-right hover:shadow-md transition-all active:scale-[0.98]"
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <Book className="h-5 w-5 text-primary" />
+                  <BookMarked className="h-5 w-5 text-primary" />
                   <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
-                    {toArabicNumeral(book.hadithCount)}
+                    {toArabicNumeral(book.count)}
                   </span>
                 </div>
                 <p className="font-ui font-bold text-base">{book.name}</p>
-                <p className="font-ui text-xs text-muted-foreground mt-1">{book.arabicName}</p>
+                <p className="font-ui text-xs text-muted-foreground mt-1">حديث شريف</p>
               </button>
             ))}
           </div>
@@ -232,4 +198,4 @@ export default function HadithPage() {
       </div>
     </div>
   );
-  }
+        }

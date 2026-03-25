@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { Home, ArrowUp, Play, Pause, Maximize2, Minimize2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const SWIPE_THRESHOLD = 60;
 
 export default function QuranReader() {
   const { pageNumber } = useParams();
@@ -26,8 +25,6 @@ export default function QuranReader() {
   // المرجع للحاوية القابلة للتمرير
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const touchStartY = useRef(0);
-  const touchStartX = useRef(0);
 
   // عند تغيير الصفحة — ارجع لأعلى الحاوية
   useEffect(() => {
@@ -41,19 +38,6 @@ export default function QuranReader() {
     localStorage.setItem('tagweed-last-page', String(newPage));
     stop();
     navigate(`/page/${newPage}`, { replace: true });
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-    touchStartX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    const deltaY = touchStartY.current - e.changedTouches[0].clientY;
-    const deltaX = Math.abs(touchStartX.current - e.changedTouches[0].clientX);
-    if (Math.abs(deltaY) < SWIPE_THRESHOLD || deltaX > 50) return;
-    if (deltaY > SWIPE_THRESHOLD && page < 604) handlePageChange(page + 1);
-    else if (deltaY < -SWIPE_THRESHOLD && page > 1) handlePageChange(page - 1);
   };
 
   // الـ scroll على الحاوية الداخلية
@@ -104,8 +88,6 @@ export default function QuranReader() {
         ref={scrollRef}
         className="flex-1 overflow-y-auto overscroll-contain"
         onScroll={handleScroll}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
       >
         <QuranPageView ayahs={data?.ayahs} isLoading={isLoading} />
       </div>

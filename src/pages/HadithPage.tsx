@@ -46,7 +46,8 @@ export default function HadithPage() {
     setResult(null);
 
     try {
-      const response = await fetch('/api/ai', {
+      // جرب هذا المسار أولاً (Supabase Edge Function)
+      let response = await fetch('/functions/v1/tagweed-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -54,6 +55,18 @@ export default function HadithPage() {
           query: searchQuery 
         }),
       });
+
+      // إذا فشل، جرب المسار البديل
+      if (!response.ok) {
+        response = await fetch('/api/tagweed-ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            type: 'hadith_search',
+            query: searchQuery 
+          }),
+        });
+      }
 
       const data = await response.json();
       
@@ -65,7 +78,8 @@ export default function HadithPage() {
         setSuggestions(exampleQueries.filter(q => q !== searchQuery).slice(0, 3));
       }
     } catch (err) {
-      setError('حدث خطأ في الاتصال. تأكد من اتصالك بالإنترنت.');
+      console.error('Search error:', err);
+      setError('حدث خطأ في الاتصال. تأكد من اتصالك بالإنترنت وأن الـ AI يعمل بشكل صحيح.');
       toast.error('فشل البحث');
     } finally {
       setLoading(false);
@@ -274,4 +288,4 @@ export default function HadithPage() {
       </div>
     </div>
   );
-  }
+}

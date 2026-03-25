@@ -23,8 +23,6 @@ import LoginPage from "./pages/LoginPage.tsx";
 import SignupPage from "./pages/SignupPage.tsx";
 import Settings from "./pages/Settings.tsx";
 import PrayerTimesPage from "./pages/PrayerTimesPage.tsx";
-import HadithPage from "./pages/HadithPage.tsx";
-// احذف سطر استيراد HadithViewer لأنه غير موجود
 
 const queryClient = new QueryClient();
 
@@ -55,7 +53,6 @@ const App = () => {
               <Route path="/signup" element={<SignupPage />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/prayer-times" element={<PrayerTimesPage />} />
-              <Route path="/hadith" element={<HadithPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <BottomNav 

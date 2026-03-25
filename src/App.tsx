@@ -24,7 +24,6 @@ import SignupPage from "./pages/SignupPage.tsx";
 import Settings from "./pages/Settings.tsx";
 import PrayerTimesPage from "./pages/PrayerTimesPage.tsx";
 import HadithPage from "./pages/HadithPage.tsx";
-import HadithViewer from "./pages/HadithViewer.tsx";
 
 const queryClient = new QueryClient();
 

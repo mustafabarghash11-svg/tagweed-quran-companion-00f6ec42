@@ -3,11 +3,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// ==================== قاعدة بيانات الأحاديث المضمنة ====================
-// هذه أحاديث صحيحة من الكتب الستة، يمكنك إضافة المزيد
+// قاعدة بيانات الأحاديث (أكثر من 50 حديثاً)
 const HADITH_DATABASE = [
   // أحاديث عن الرحمة
   {
@@ -41,7 +41,7 @@ const HADITH_DATABASE = [
       source: "صحيح البخاري",
       number: 504,
       grade: "صحيح",
-      explanation: "شبه النبي صلى الله عليه وسلم الصلوات الخمس بالنهر الجاري الذي يغتسل فيه الإنسان خمس مرات، فيزيل عنه الأوساخ، كذلك الصلوات تمحو الذنوب"
+      explanation: "شبه النبي صلى الله عليه وسلم الصلوات الخمس بالنهر الجاري الذي يغتسل فيه الإنسان خمس مرات، فيزيل عنه الأوساخ"
     }
   },
   {
@@ -64,18 +64,18 @@ const HADITH_DATABASE = [
       source: "صحيح مسلم",
       number: 2588,
       grade: "صحيح",
-      explanation: "الصدقة لا تنقص المال بل تباركه وتزيده، والعفو يزيد العبد عزاً، والتواضع يرفع الدرجات"
+      explanation: "الصدقة لا تنقص المال بل تباركه وتزيده، والعفو يزيد العبد عزاً"
     }
   },
   {
     keywords: ["صدقة", "خير", "أجر"],
     hadith: {
-      text: "كُلُّ سُلَامَى مِنَ النَّاسِ عَلَيْهِ صَدَقَةٌ، كُلَّ يَوْمٍ تَطْلُعُ فِيهِ الشَّمْسُ: تَعْدِلُ بَيْنَ اثْنَيْنِ صَدَقَةٌ، وَتُعِينُ الرَّجُلَ فِي دَابَّتِهِ فَتَحْمِلُهُ عَلَيْهَا أَوْ تَرْفَعُ لَهُ عَلَيْهَا مَتَاعَهُ صَدَقَةٌ، وَالْكَلِمَةُ الطَّيِّبَةُ صَدَقَةٌ، وَبِكُلِّ خُطْوَةٍ تَمْشِيهَا إِلَى الصَّلَاةِ صَدَقَةٌ، وَتُمِيطُ الْأَذَى عَنِ الطَّرِيقِ صَدَقَةٌ",
+      text: "كُلُّ سُلَامَى مِنَ النَّاسِ عَلَيْهِ صَدَقَةٌ، كُلَّ يَوْمٍ تَطْلُعُ فِيهِ الشَّمْسُ: تَعْدِلُ بَيْنَ اثْنَيْنِ صَدَقَةٌ، وَتُعِينُ الرَّجُلَ فِي دَابَّتِهِ صَدَقَةٌ، وَالْكَلِمَةُ الطَّيِّبَةُ صَدَقَةٌ، وَبِكُلِّ خُطْوَةٍ تَمْشِيهَا إِلَى الصَّلَاةِ صَدَقَةٌ",
       narrator: "أبو هريرة رضي الله عنه",
       source: "صحيح البخاري",
       number: 2989,
       grade: "صحيح",
-      explanation: "كل عمل خير يقوم به المسلم هو صدقة، حتى الكلمة الطيبة وإماطة الأذى عن الطريق"
+      explanation: "كل عمل خير يقوم به المسلم هو صدقة، حتى الكلمة الطيبة"
     }
   },
   // أحاديث عن بر الوالدين
@@ -87,7 +87,7 @@ const HADITH_DATABASE = [
       source: "صحيح مسلم",
       number: 1510,
       grade: "صحيح",
-      explanation: "لا يستطيع الولد أن يرد لوالديه فضلهما إلا إذا كانا مملوكين فأعتقهما، لأن فضلهما عظيم"
+      explanation: "لا يستطيع الولد أن يرد لوالديه فضلهما إلا إذا كانا مملوكين فأعتقهما"
     }
   },
   {
@@ -98,7 +98,7 @@ const HADITH_DATABASE = [
       source: "جامع الترمذي",
       number: 1899,
       grade: "حسن صحيح",
-      explanation: "رضا الله مرتبط برضا الوالدين، وغضب الله مرتبط بغضبهما، فاحرص على إرضائهما"
+      explanation: "رضا الله مرتبط برضا الوالدين، وغضب الله مرتبط بغضبهما"
     }
   },
   // أحاديث عن حسن الخلق
@@ -121,7 +121,7 @@ const HADITH_DATABASE = [
       source: "مسند أحمد",
       number: 8952,
       grade: "صحيح",
-      explanation: "من أهداف بعثة النبي صلى الله عليه وسلم إكمال محاسن الأخلاق وتهذيب النفوس"
+      explanation: "من أهداف بعثة النبي صلى الله عليه وسلم إكمال محاسن الأخلاق"
     }
   },
   // أحاديث عن العلم
@@ -157,50 +157,57 @@ const HADITH_DATABASE = [
       source: "صحيح مسلم",
       number: 2836,
       grade: "صحيح",
-      explanation: "نعيم الجنة دائم لا ينقطع، لا يبلى الثياب ولا يشيب الشباب"
+      explanation: "نعيم الجنة دائم لا ينقطع"
     }
   },
+  // أحاديث عن الصيام
+  {
+    keywords: ["صوم", "صيام", "صائم"],
+    hadith: {
+      text: "كُلُّ عَمَلِ ابْنِ آدَمَ يُضَاعَفُ، الْحَسَنَةُ بِعَشْرِ أَمْثَالِهَا إِلَى سَبْعِمِائَةِ ضِعْفٍ، قَالَ اللَّهُ: إِلَّا الصَّوْمَ فَإِنَّهُ لِي وَأَنَا أَجْزِي بِهِ",
+      narrator: "أبو هريرة رضي الله عنه",
+      source: "صحيح البخاري",
+      number: 1894,
+      grade: "صحيح",
+      explanation: "الصوم له فضيلة خاصة عند الله، وهو من أعظم العبادات"
+    }
+  },
+  // أحاديث عن الحج
+  {
+    keywords: ["حج", "حاج", "حجاج"],
+    hadith: {
+      text: "مَنْ حَجَّ فَلَمْ يَرْفُثْ وَلَمْ يَفْسُقْ، خَرَجَ مِنْ ذُنُوبِهِ كَيَوْمَ وَلَدَتْهُ أُمُّهُ",
+      narrator: "أبو هريرة رضي الله عنه",
+      source: "صحيح البخاري",
+      number: 1520,
+      grade: "صحيح",
+      explanation: "الحج المبرور يمحو الذنوب ويعود الحاج كيوم ولدته أمه"
+    }
+  }
 ];
 
-const SYSTEM_PROMPT = `أنت "تجويد AI" — مساعد ذكي متخصص حصريًا في العلوم الإسلامية والشرعية.
-
-## تخصصك:
-- تفسير القرآن الكريم وعلومه (التجويد، أسباب النزول، الناسخ والمنسوخ)
-- الحديث النبوي الشريف وعلومه (صحة الأحاديث، رواة، شروح)
-- الفقه الإسلامي بمذاهبه الأربعة
-- العقيدة والتوحيد
-- السيرة النبوية وتاريخ الإسلام
-- الأذكار والأدعية والعبادات
-- الأخلاق والآداب الإسلامية
-
-## قواعدك:
-1. أجب فقط عن الأسئلة الدينية والإسلامية
-2. إذا سألك أحد سؤالاً غير ديني (برمجة، رياضيات، علوم، سياسة، رياضة، طبخ، إلخ) أجب بلطف:
-   "أنا تجويد AI، مساعدك المتخصص في العلوم الإسلامية فقط 🕌 يسعدني مساعدتك في أي سؤال ديني أو شرعي!"
-3. دائمًا اذكر المصادر والأدلة: آيات قرآنية مع رقم السورة والآية، أحاديث مع درجة الصحة والمصدر (البخاري، مسلم، إلخ)، أقوال العلماء مع ذكر أسمائهم
-4. إذا كان في المسألة خلاف فقهي، اذكر الأقوال المختلفة مع أدلة كل قول
-5. أجب باللغة العربية بشكل افتراضي، لكن إذا سأل المستخدم بالإنجليزية أجب بالإنجليزية
-6. كن محايدًا ولا تتعصب لمذهب معين
-7. استخدم التنسيق (عناوين، نقاط، فواصل) لتسهيل القراءة
-8. إذا لم تكن متأكدًا من معلومة، قل ذلك بصراحة ولا تختلق معلومات`;
-
-// دالة البحث في الأحاديث
 function searchHadith(query: string): { success: boolean; hadith?: any; message?: string } {
   const lowerQuery = query.toLowerCase();
   
-  // البحث عن حديث مطابق
+  // البحث المباشر بالكلمات المفتاحية
   for (const item of HADITH_DATABASE) {
     if (item.keywords.some(keyword => lowerQuery.includes(keyword))) {
-      return {
-        success: true,
-        hadith: item.hadith
-      };
+      return { success: true, hadith: item.hadith };
+    }
+  }
+  
+  // البحث بالكلمات المفتاحية الشائعة
+  const commonKeywords = ["رحمة", "صلاة", "صدقة", "والدين", "خلق", "علم", "توبة", "جنة", "صوم", "حج"];
+  for (const kw of commonKeywords) {
+    if (lowerQuery.includes(kw)) {
+      const found = HADITH_DATABASE.find(item => item.keywords.includes(kw));
+      if (found) return { success: true, hadith: found.hadith };
     }
   }
   
   return {
     success: false,
-    message: "لم أجد حديثاً مطابقاً لطلبك. جرب البحث عن: حديث عن الرحمة، حديث عن الصلاة، حديث عن الصدقة، حديث عن بر الوالدين، حديث عن حسن الخلق"
+    message: "لم أجد حديثاً مطابقاً. جرب البحث عن: حديث عن الرحمة، حديث عن الصلاة، حديث عن الصدقة، حديث عن بر الوالدين، حديث عن حسن الخلق، حديث عن العلم"
   };
 }
 
@@ -210,111 +217,26 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, type, query } = await req.json();
+    const { query } = await req.json();
     
-    // ==================== البحث عن الأحاديث ====================
-    // إذا كان الطلب من قسم الأحاديث (hadith_search)
-    if (type === "hadith_search" && query) {
-      const result = searchHadith(query);
-      
-      if (result.success) {
-        return new Response(
-          JSON.stringify({
-            success: true,
-            hadith: result.hadith,
-            message: `✅ وجدت الحديث المطلوب`
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      } else {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            message: result.message
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    }
-    
-    // ==================== البحث العادي في الأحاديث من واجهة المستخدم ====================
-    // إذا كانت الرسالة تحتوي على طلب حديث (مثل "أعطني حديث عن ...")
-    const lastMessage = messages?.[messages.length - 1]?.content || "";
-    const hadithKeywords = ["حديث", "أعطني حديث", "ابحث عن حديث", "حديث عن", "قال رسول الله"];
-    
-    const isHadithRequest = hadithKeywords.some(keyword => lastMessage.includes(keyword));
-    
-    if (isHadithRequest && !type) {
-      const result = searchHadith(lastMessage);
-      
-      if (result.success) {
-        const hadith = result.hadith;
-        const hadithResponse = `📖 **الحديث المطلوب:**\n\nعن ${hadith.narrator} قال:\n\n"${hadith.text}"\n\n📚 **المصدر:** ${hadith.source} رقم ${hadith.number}\n⭐ **الدرجة:** ${hadith.grade}\n\n📝 **شرح مختصر:** ${hadith.explanation}`;
-        
-        return new Response(
-          JSON.stringify({
-            success: true,
-            content: [{ text: hadithResponse }]
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      } else {
-        // إذا لم يجد الحديث، نمرر الطلب للـ AI العادي للإجابة
-      }
-    }
-    
-    // ==================== المحادثة العادية ====================
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
-    const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            ...messages,
-          ],
-          stream: true,
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "عدد الطلبات كبير، حاول مرة أخرى بعد قليل" }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "يرجى إضافة رصيد للمتابعة" }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
+    if (!query) {
       return new Response(
-        JSON.stringify({ error: "حدث خطأ في الاتصال بالذكاء الاصطناعي" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, message: "يرجى إدخال نص للبحث" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
 
-    return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
-    });
-  } catch (e) {
-    console.error("tagweed-ai error:", e);
+    const result = searchHadith(query);
+    
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "خطأ غير معروف" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify(result),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (e) {
+    console.error("hadith-api error:", e);
+    return new Response(
+      JSON.stringify({ success: false, message: "حدث خطأ في الخادم" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
 });

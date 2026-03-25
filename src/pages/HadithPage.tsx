@@ -1,10 +1,10 @@
 // src/pages/HadithPage.tsx
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   ChevronRight, Search, Loader2, Sparkles, 
   MessageSquare, Copy, Share2, Heart, AlertCircle,
-  Send, Brain, BookOpen
+  Send, Brain
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,25 +19,21 @@ interface HadithResult {
   explanation?: string;
 }
 
+const exampleQueries = [
+  'حديث عن الرحمة',
+  'حديث عن الصلاة',
+  'حديث عن الصدقة',
+  'حديث عن بر الوالدين',
+  'حديث عن حسن الخلق',
+  'حديث عن العلم',
+];
+
 export default function HadithPage() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<HadithResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // اقتراحات للبحث
-  const exampleQueries = [
-    'حديث عن الرحمة',
-    'حديث عن الصلاة',
-    'حديث عن الصدقة',
-    'حديث عن بر الوالدين',
-    'حديث عن حسن الخلق',
-    'حديث عن العلم',
-    'حديث عن التوبة',
-    'حديث عن الجنة',
-  ];
 
   const searchHadith = async (searchQuery: string) => {
     if (!searchQuery.trim()) {
@@ -50,19 +46,14 @@ export default function HadithPage() {
     setResult(null);
 
     try {
-      // استدعاء دالة الذكاء الاصطناعي
-      const response = await fetch('/api/ai/hadith', {
+      const response = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          query: searchQuery,
-          type: 'hadith_search'
+          type: 'hadith_search',
+          query: searchQuery 
         }),
       });
-
-      if (!response.ok) {
-        throw new Error('فشل الاتصال بالذكاء الاصطناعي');
-      }
 
       const data = await response.json();
       
@@ -70,8 +61,7 @@ export default function HadithPage() {
         setResult(data.hadith);
         toast.success('تم العثور على الحديث');
       } else {
-        setError(data.message || 'لم أتمكن من العثور على حديث مطابق. حاول بصيغة أخرى.');
-        // إظهار اقتراحات
+        setError(data.message || 'لم أتمكن من العثور على حديث مطابق');
         setSuggestions(exampleQueries.filter(q => q !== searchQuery).slice(0, 3));
       }
     } catch (err) {
@@ -101,8 +91,7 @@ export default function HadithPage() {
   };
 
   return (
-    <div className="min-h-screen pb-24 bg-gradient-to-b from-background to-primary/5" dir="rtl">
-      {/* Header */}
+    <div className="min-h-screen pb-24 bg-background" dir="rtl">
       <header className="sticky top-0 z-50 border-b border-primary/20 bg-card/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
           <Link to="/" className="text-primary transition-transform hover:scale-105">
@@ -136,7 +125,6 @@ export default function HadithPage() {
             <div className="relative flex-1">
               <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                ref={inputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="مثال: أعطني حديثاً عن الرحمة"
@@ -196,7 +184,6 @@ export default function HadithPage() {
         {result && !loading && (
           <div className="space-y-4">
             <div className="rounded-2xl border border-primary/20 bg-card p-5 space-y-4">
-              {/* Header */}
               <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-primary/10">
                 <span className="rounded-full bg-primary/10 px-3 py-1 font-ui text-sm font-bold text-primary">
                   {result.source} • رقم {result.number}
@@ -205,27 +192,24 @@ export default function HadithPage() {
                   <span className={`rounded-full px-3 py-1 font-ui text-sm font-bold ${
                     result.grade.includes('صحيح') 
                       ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
-                      : 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
+                      : 'bg-amber-100 text-amber-700'
                   }`}>
                     {result.grade}
                   </span>
                 )}
               </div>
 
-              {/* Narrator */}
               <div>
                 <p className="font-ui text-xs text-muted-foreground mb-1">عن</p>
                 <p className="font-ui text-base font-semibold">{result.narrator}</p>
               </div>
 
-              {/* Hadith Text */}
               <div className="bg-muted/30 rounded-xl p-5">
                 <p className="font-ui text-lg leading-loose text-foreground">
                   {result.text}
                 </p>
               </div>
 
-              {/* Explanation (if available) */}
               {result.explanation && (
                 <div className="pt-3 border-t border-primary/10">
                   <p className="font-ui text-xs text-muted-foreground mb-1">شرح مختصر</p>
@@ -233,7 +217,6 @@ export default function HadithPage() {
                 </div>
               )}
 
-              {/* Actions */}
               <div className="flex gap-2 pt-2">
                 <Button variant="outline" size="sm" onClick={copyHadith} className="gap-2">
                   <Copy className="h-4 w-4" />
@@ -250,10 +233,13 @@ export default function HadithPage() {
               </div>
             </div>
 
-            {/* Try Another */}
             <div className="text-center pt-4">
               <button
-                onClick={() => setQuery('')}
+                onClick={() => {
+                  setQuery('');
+                  setResult(null);
+                  setError(null);
+                }}
                 className="font-ui text-sm text-primary hover:underline"
               >
                 ابحث عن حديث آخر ←
@@ -262,7 +248,7 @@ export default function HadithPage() {
           </div>
         )}
 
-        {/* Suggestions Cards (when no result and not searching) */}
+        {/* Suggestions Cards */}
         {!result && !loading && !error && (
           <div className="mt-8">
             <p className="font-ui text-sm text-muted-foreground text-center mb-4">
@@ -288,4 +274,4 @@ export default function HadithPage() {
       </div>
     </div>
   );
-        }
+  }

@@ -1,4 +1,11 @@
 // src/data/hadithData.ts
+import { BUKHARI_HADITHS, getBukhariHadiths, getBukhariCount } from './hadithCollections/bukhari';
+import { MUSLIM_HADITHS, getMuslimHadiths, getMuslimCount } from './hadithCollections/muslim';
+import { TIRMIDHI_HADITHS, getTirmidhiHadiths, getTirmidhiCount } from './hadithCollections/tirmidhi';
+import { ABUDAWUD_HADITHS, getAbuDawudHadiths, getAbuDawudCount } from './hadithCollections/abudawud';
+import { NASAI_HADITHS, getNasaiHadiths, getNasaiCount } from './hadithCollections/nasai';
+import { IBNMAJAH_HADITHS, getIbnMajahHadiths, getIbnMajahCount } from './hadithCollections/ibnmajah';
+
 export interface Hadith {
   id: number;
   collection: string;
@@ -10,23 +17,41 @@ export interface Hadith {
   grade: string;
 }
 
-// قاعدة بيانات مؤقتة (500 حديث نموذجية)
-export const ALL_HADITHS: Hadith[] = [];
+// تجميع كل الأحاديث
+export const ALL_HADITHS: Hadith[] = [
+  ...BUKHARI_HADITHS,
+  ...MUSLIM_HADITHS,
+  ...TIRMIDHI_HADITHS,
+  ...ABUDAWUD_HADITHS,
+  ...NASAI_HADITHS,
+  ...IBNMAJAH_HADITHS,
+];
 
 // إحصائيات الكتب
 export const COLLECTIONS = [
-  { id: 'bukhari', name: 'صحيح البخاري', count: 0, getHadiths: () => [] },
-  { id: 'muslim', name: 'صحيح مسلم', count: 0, getHadiths: () => [] },
-  { id: 'tirmidhi', name: 'جامع الترمذي', count: 0, getHadiths: () => [] },
-  { id: 'abudawud', name: 'سنن أبي داود', count: 0, getHadiths: () => [] },
-  { id: 'nasai', name: 'سنن النسائي', count: 0, getHadiths: () => [] },
-  { id: 'ibnmajah', name: 'سنن ابن ماجه', count: 0, getHadiths: () => [] },
+  { id: 'bukhari', name: 'صحيح البخاري', count: getBukhariCount(), getHadiths: getBukhariHadiths },
+  { id: 'muslim', name: 'صحيح مسلم', count: getMuslimCount(), getHadiths: getMuslimHadiths },
+  { id: 'tirmidhi', name: 'جامع الترمذي', count: getTirmidhiCount(), getHadiths: getTirmidhiHadiths },
+  { id: 'abudawud', name: 'سنن أبي داود', count: getAbuDawudCount(), getHadiths: getAbuDawudHadiths },
+  { id: 'nasai', name: 'سنن النسائي', count: getNasaiCount(), getHadiths: getNasaiHadiths },
+  { id: 'ibnmajah', name: 'سنن ابن ماجه', count: getIbnMajahCount(), getHadiths: getIbnMajahHadiths },
 ];
 
+// دالة بحث عامة
 export function searchHadiths(query: string): Hadith[] {
-  return [];
+  const lowerQuery = query.toLowerCase();
+  return ALL_HADITHS.filter(h => 
+    h.text.toLowerCase().includes(lowerQuery) ||
+    h.narrator.includes(query) ||
+    h.book.includes(query)
+  ).slice(0, 50);
 }
 
+// دالة لجلب حديث بواسطة ID
 export function getHadithById(id: number): Hadith | undefined {
-  return undefined;
+  return ALL_HADITHS.find(h => h.id === id);
 }
+
+// طباعة للتأكد (اختبر في console)
+console.log('عدد الأحاديث الكلي:', ALL_HADITHS.length);
+console.log('الكتب:', COLLECTIONS.map(c => ({ name: c.name, count: c.count })));

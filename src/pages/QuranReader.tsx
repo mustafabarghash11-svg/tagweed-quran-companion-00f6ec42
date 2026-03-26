@@ -7,7 +7,7 @@ import { AudioPlayer } from '@/components/AudioPlayer';
 import { Sidebar } from '@/components/Sidebar';
 import { useAudio } from '@/context/AudioContext.tsx';
 import { Button } from '@/components/ui/button';
-import { Home, ArrowUp, Play, Pause, Maximize2, Minimize2, Sun, Moon, Search, Menu, Languages, BookOpen } from 'lucide-react';
+import { Home, ArrowUp, Play, Pause, Maximize2, Minimize2, Sun, Moon, Search, Menu } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSettings } from '@/context/SettingsContext';
 
@@ -163,10 +163,10 @@ export default function QuranReader() {
       style={{ height: '100dvh', overflow: 'hidden' }}
       dir="rtl"
     >
-      {/* الشريط العلوي الموحد — جميع الأزرار في مكان واحد */}
+      {/* الشريط العلوي الموحد — بدون أزرار التفسير والتجويد */}
       {!fullscreen && (
         <div className="sticky top-0 z-50 border-b border-primary/20 bg-card/95 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-2 px-4 py-2">
+          <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-2">
             {/* المجموعة الأولى: أزرار رئيسية */}
             <div className="flex items-center gap-2">
               {/* زر البحث */}
@@ -194,32 +194,7 @@ export default function QuranReader() {
               </button>
             </div>
 
-            {/* المجموعة الثانية: أزرار التفسير والتجويد */}
-            <div className="flex items-center gap-2">
-              {/* زر التفسير (تيسير) */}
-              <button
-                onClick={() => setShowTranslation(!showTranslation)}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-ui text-xs transition-colors ${
-                  showTranslation ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Languages className="h-3.5 w-3.5" />
-                تيسير
-              </button>
-              
-              {/* زر التجويد */}
-              <button
-                onClick={() => setShowTajweed(!showTajweed)}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-ui text-xs transition-colors ${
-                  showTajweed ? 'bg-amber-500 text-white' : 'bg-muted text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <BookOpen className="h-3.5 w-3.5" />
-                تجويد
-              </button>
-            </div>
-
-            {/* المجموعة الثالثة: رقم الصفحة + زر ملء الشاشة */}
+            {/* المجموعة الثانية: رقم الصفحة + زر ملء الشاشة */}
             <div className="flex items-center gap-3">
               <div className="font-ui text-sm text-muted-foreground">
                 صفحة {page}
@@ -344,4 +319,4 @@ export default function QuranReader() {
       )}
     </div>
   );
-                    }
+                             }

@@ -28,13 +28,23 @@ export function BottomNav({ isVisible = true, onToggle }: BottomNavProps) {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40">
+    <div className={`fixed bottom-0 left-0 right-0 z-40 transition-all duration-300 ${collapsed ? 'translate-y-[calc(100%-40px)]' : 'translate-y-0'}`}>
+      {/* زر الإخفاء/الإظهار - شريط صغير في الأعلى */}
+      <div className="flex justify-center">
+        <button
+          onClick={handleToggle}
+          className="flex h-8 w-24 items-center justify-center rounded-t-xl bg-card border-x border-t border-primary/20 text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all"
+        >
+          {collapsed ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
+        </button>
+      </div>
+
       {/* القائمة الرئيسية */}
-      <nav
-        className={`bg-card/95 backdrop-blur-lg border-t border-primary/10 transition-all duration-300 ${
-          collapsed ? 'translate-y-full' : 'translate-y-0'
-        }`}
-      >
+      <nav className="bg-card/95 backdrop-blur-lg border-t border-primary/10">
         <div className="mx-auto flex max-w-md items-center justify-around px-2 py-2">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
@@ -57,19 +67,6 @@ export function BottomNav({ isVisible = true, onToggle }: BottomNavProps) {
           })}
         </div>
       </nav>
-
-      {/* زر الإخفاء/الإظهار - أسفل القائمة مباشرة */}
-      <button
-        onClick={handleToggle}
-        className="absolute -top-7 left-1/2 -translate-x-1/2 flex h-7 w-14 items-center justify-center rounded-t-xl bg-card border border-primary/20 border-b-0 text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all shadow-sm"
-        title={collapsed ? 'إظهار القائمة' : 'إخفاء القائمة'}
-      >
-        {collapsed ? (
-          <ChevronUp className="h-4 w-4" />
-        ) : (
-          <ChevronDown className="h-4 w-4" />
-        )}
-      </button>
     </div>
   );
-}
+        }

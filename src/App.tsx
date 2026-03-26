@@ -4,7 +4,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/context/AuthContext";
-import { BottomNav } from "@/components/BottomNav";
 import { useState } from "react";
 import Index from "./pages/Index.tsx";
 import QuranReader from "./pages/QuranReader.tsx";
@@ -23,11 +22,14 @@ import LoginPage from "./pages/LoginPage.tsx";
 import SignupPage from "./pages/SignupPage.tsx";
 import Settings from "./pages/Settings.tsx";
 import PrayerTimesPage from "./pages/PrayerTimesPage.tsx";
+// حذف استيراد BottomNav
+// import { BottomNav } from "@/components/BottomNav";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [bottomNavVisible, setBottomNavVisible] = useState(true);
+  // حذف state الخاص بـ BottomNav
+  // const [bottomNavVisible, setBottomNavVisible] = useState(true);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -55,10 +57,11 @@ const App = () => {
               <Route path="/prayer-times" element={<PrayerTimesPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
-            <BottomNav 
+            {/* حذف BottomNav */}
+            {/* <BottomNav 
               isVisible={bottomNavVisible} 
               onToggle={() => setBottomNavVisible(!bottomNavVisible)} 
-            />
+            /> */}
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>

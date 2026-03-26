@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Search, Loader2, BookOpen, BookMarked, FileText, X, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -149,7 +149,12 @@ export default function SearchPage() {
   const [ayahResults, setAyahResults]   = useState<AyahResult[]>([]);
   const [ayahLoading, setAyahLoading]   = useState(false);
   const [ayahReady, setAyahReady]       = useState(!!quranCache);
+  const [suggestions, setSuggestions] = useState<AyahResult[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: surahs, isLoading: surahsLoading } = useSurahs();
 
@@ -221,12 +226,29 @@ export default function SearchPage() {
     }
   }
 
+  // اقتراحات فورية (أسرع من البحث الكامل)
+  const fetchSuggestions = useCallback(async (q: string) => {
+    if (q.trim().length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
+    try {
+      const data = await loadQuranData();
+      const norm = normalize(q);
+      const results = data
+        .filter((a) => normalize(a.text).includes(norm))
+        .slice(0, 5);
+      setSuggestions(results);
+      setShowSuggestions(results.length > 0);
+    } catch { setSuggestions([]); }
+  }, []);
+
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       searchSurahsAndJuz(query);
       searchAyahsAsync(query);
     }, 300);
+    // اقتراحات بـ debounce أقصر
+    if (suggDebounceRef.current) clearTimeout(suggDebounceRef.current);
+    suggDebounceRef.current = setTimeout(() => fetchSuggestions(query), 150);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [query, filter, surahs]);
 
@@ -253,13 +275,44 @@ export default function SearchPage() {
           <div className="relative flex-1">
             <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              ref={inputRef}
               autoFocus
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => { setQuery(e.target.value); }}
+              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
               placeholder="ابحث عن سورة، جزء، أو نص آية..."
               className="pr-9 font-ui text-right"
               dir="rtl"
             />
+            {/* Suggestions dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div
+                ref={suggestionsRef}
+                className="absolute top-full right-0 left-0 z-50 mt-1 rounded-xl border border-primary/15 bg-card shadow-xl overflow-hidden"
+                dir="rtl"
+              >
+                {suggestions.map((s) => (
+                  <button
+                    key={s.ayahNumber}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setQuery(s.text.slice(0, 40));
+                      setShowSuggestions(false);
+                      inputRef.current?.focus();
+                    }}
+                    className="w-full flex flex-col gap-0.5 px-3 py-2.5 text-right hover:bg-primary/8 transition-colors border-b border-primary/5 last:border-0"
+                  >
+                    <span className="font-quran text-sm leading-relaxed text-foreground line-clamp-1" dir="rtl">
+                      {highlightMatch(s.text.slice(0, 60) + (s.text.length > 60 ? '...' : ''), query)}
+                    </span>
+                    <span className="font-ui text-[10px] text-muted-foreground">
+                      {s.surahName} · آية {toArabicNumeral(s.numberInSurah)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
             {query && (
               <button
                 onClick={() => setQuery('')}
@@ -416,7 +469,7 @@ export default function SearchPage() {
                 </h2>
                 <div className="space-y-1.5">
                   {visibleAyahs.map((r) => (
-                    <Link key={r.ayahNumber} to={`/page/${r.page}`}
+                    <Link key={r.ayahNumber} to={`/page/${r.page}?ayah=${r.ayahNumber}`}
                       className="block rounded-xl border border-primary/10 bg-card px-4 py-3 shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
                     >
                       <div className="flex items-center justify-between mb-1.5">

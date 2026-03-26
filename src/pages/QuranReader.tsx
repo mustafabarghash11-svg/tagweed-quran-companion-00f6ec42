@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Home, ArrowUp, Play, Pause, Maximize2, Minimize2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+const SWIPE_THRESHOLD = 50; // الحد الأدنى لمسافة السحب (بكسل)
+
 export default function QuranReader() {
   const { pageNumber } = useParams();
   const navigate = useNavigate();
@@ -23,18 +25,18 @@ export default function QuranReader() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
 
-  // دالة تفعيل ملء الشاشة الحقيقية
+  // ========== ملء الشاشة ==========
   const toggleFullscreen = async () => {
     if (!fullscreen) {
-      // الدخول في وضع ملء الشاشة
       const element = containerRef.current;
       if (element?.requestFullscreen) {
         await element.requestFullscreen();
       }
       setFullscreen(true);
     } else {
-      // الخروج من وضع ملء الشاشة
       if (document.exitFullscreen) {
         await document.exitFullscreen();
       }
@@ -42,7 +44,6 @@ export default function QuranReader() {
     }
   };
 
-  // مراقبة تغيير وضع ملء الشاشة من المتصفح
   useEffect(() => {
     const handleFullscreenChange = () => {
       setFullscreen(!!document.fullscreenElement);
@@ -51,18 +52,66 @@ export default function QuranReader() {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  // ========== التنقل بالسحب (يسار/يمين فقط) ==========
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const deltaX = touchStartX.current - e.changedTouches[0].clientX;
+    const deltaY = Math.abs(touchStartY.current - e.changedTouches[0].clientY);
+    
+    // تجاهل السحب إذا كان عمودياً أكثر من أفقي
+    if (Math.abs(deltaX) < Math.abs(deltaY)) return;
+    
+    // السحب لليسار (deltaX موجب) ← الصفحة التالية
+    if (deltaX > SWIPE_THRESHOLD && page < 604) {
+      handlePageChange(page + 1);
+    }
+    // السحب لليمين (deltaX سالب) ← الصفحة السابقة
+    else if (deltaX < -SWIPE_THRESHOLD && page > 1) {
+      handlePageChange(page - 1);
+    }
+  };
+
+  // ========== التنقل بالنقر في وضع ملء الشاشة ==========
+  const handleFullscreenTap = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+    if (!fullscreen) return;
+    
+    let clientX: number;
+    if ('touches' in e) {
+      clientX = e.touches[0].clientX;
+    } else {
+      clientX = e.clientX;
+    }
+    
+    const screenWidth = window.innerWidth;
+    const third = screenWidth / 3;
+    
+    // النقر على الثلث الأيمن ← الصفحة التالية
+    if (clientX > screenWidth - third) {
+      if (page < 604) handlePageChange(page + 1);
+    }
+    // النقر على الثلث الأيسر ← الصفحة السابقة
+    else if (clientX < third) {
+      if (page > 1) handlePageChange(page - 1);
+    }
+  };
+
+  // ========== دوال الصفحة ==========
+  const handlePageChange = (newPage: number) => {
+    localStorage.setItem('tagweed-last-page', String(newPage));
+    stop();
+    navigate(`/page/${newPage}`, { replace: true });
+  };
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
     setShowScrollTop(false);
   }, [page]);
-
-  const handlePageChange = (newPage: number) => {
-    localStorage.setItem('tagweed-last-page', String(newPage));
-    stop();
-    navigate(`/page/${newPage}`, { replace: true });
-  };
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
@@ -96,6 +145,8 @@ export default function QuranReader() {
       className="flex flex-col bg-background"
       style={{ height: '100dvh', overflow: 'hidden' }}
       dir="rtl"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
       {/* شريط المعلومات العلوي — يختفي في وضع ملء الشاشة */}
       {!fullscreen && (
@@ -131,6 +182,16 @@ export default function QuranReader() {
       >
         {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
       </button>
+
+      {/* طبقة شفافة للتنقل بالنقر في وضع ملء الشاشة */}
+      {fullscreen && (
+        <div
+          className="fixed inset-0 z-30"
+          onClick={handleFullscreenTap}
+          onTouchStart={handleFullscreenTap}
+          style={{ background: 'transparent' }}
+        />
+      )}
 
       {/* الأزرار العائمة — تختفي تماماً في وضع ملء الشاشة */}
       {!fullscreen && (
@@ -181,4 +242,4 @@ export default function QuranReader() {
       )}
     </div>
   );
-    }
+      }

@@ -1,18 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Sun, Moon, Music2, Type, Palette, BookOpen, Check, LogOut, User, Brain } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, Sun, Moon, Music2, Type, Palette, BookOpen, Brain, Volume2, Monitor, ChevronRight } from 'lucide-react';
 import { reciters } from '@/data/reciters';
 import { useSettings, COLOR_THEMES } from '@/context/SettingsContext';
 import { useAudio } from '@/context/AudioContext';
-import { useAuth } from '@/context/AuthContext';
 import { toArabicNumeral } from '@/lib/quran-api';
 import { toast } from 'sonner';
 
 export default function Settings() {
   const { reciter, setReciter, theme, setTheme, fontSize, setFontSize, colorTheme, setColorTheme } = useSettings();
   const { setCurrentReciterApiId } = useAudio();
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
   const [pages, setPages] = useState(() => {
     return parseInt(localStorage.getItem('tagweed-khatma-pages') || '1');
   });
@@ -26,12 +23,6 @@ export default function Settings() {
     setReciter(r);
     setCurrentReciterApiId(r.apiId);
     toast.success(`تم اختيار ${r.name}`);
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
-    toast.success('تم تسجيل الخروج');
   };
 
   return (
@@ -65,7 +56,9 @@ export default function Settings() {
                 }`}
               >
                 <span>{r.name}</span>
-                {reciter.id === r.id && <Check className="h-4 w-4" />}
+                {reciter.id === r.id && (
+                  <span className="text-xs">✓</span>
+                )}
               </button>
             ))}
           </div>
@@ -163,34 +156,34 @@ export default function Settings() {
           </Link>
         </div>
 
-        {/* الحساب */}
+        {/* معلومات التطبيق */}
         <div className="rounded-2xl border border-primary/10 bg-card p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-primary" />
-            <h2 className="font-ui text-sm font-bold">الحساب</h2>
+            <Monitor className="h-4 w-4 text-primary" />
+            <h2 className="font-ui text-sm font-bold">عن التطبيق</h2>
           </div>
-          {user ? (
-            <div className="space-y-2">
-              <p className="font-ui text-sm text-muted-foreground">{user.email}</p>
-              <button
-                onClick={handleSignOut}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-destructive/10 px-4 py-3 font-ui text-sm text-destructive hover:bg-destructive/20 transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-                تسجيل الخروج
-              </button>
+          <div className="space-y-2 text-right">
+            <p className="font-ui text-sm text-foreground">
+              <span className="font-bold">تجويد</span> – تطبيق شامل للقرآن الكريم والعلوم الإسلامية
+            </p>
+            <p className="font-ui text-xs text-muted-foreground">
+              الإصدار 1.0.0
+            </p>
+            <div className="pt-2 border-t border-primary/10 mt-2">
+              <p className="font-ui text-xs text-muted-foreground">
+                يحتوي التطبيق على:<br />
+                • القرآن الكريم كاملاً مع أحكام التجويد<br />
+                • تفسير الآيات<br />
+                • مواقيت الصلاة حسب الموقع<br />
+                • اختبارات دينية متنوعة<br />
+                • نظام حفظ القرآن مع تتبع الأخطاء<br />
+                • مساعد ذكي بالذكاء الاصطناعي
+              </p>
             </div>
-          ) : (
-            <Link
-              to="/login"
-              className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-ui text-sm text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              تسجيل الدخول
-            </Link>
-          )}
+          </div>
         </div>
 
       </div>
     </div>
   );
-}
+    }

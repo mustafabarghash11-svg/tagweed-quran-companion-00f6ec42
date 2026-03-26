@@ -1,21 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Search, Loader2, BookOpen, BookMarked, Filter, X } from 'lucide-react';
+import { ArrowRight, Search, Loader2, BookOpen, BookMarked, Filter, X, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { toArabicNumeral } from '@/lib/quran-api';
+import { toArabicNumeral, SURAH_START_PAGES } from '@/lib/quran-api';
 import { useSurahs } from '@/hooks/use-quran';
 
 interface SearchResult {
-  type: 'ayah' | 'surah' | 'juz';
+  type: 'surah' | 'juz';
   title: string;
   subtitle: string;
   link: string;
-  preview?: string;
   number: number;
 }
 
-// بيانات الأجزاء
+// بيانات الأجزاء كاملة
 const JUZ_DATA = [
   { number: 1, name: 'الجزء الأول', startPage: 1, startSurah: 1 },
   { number: 2, name: 'الجزء الثاني', startPage: 22, startSurah: 2 },
@@ -49,14 +48,27 @@ const JUZ_DATA = [
   { number: 30, name: 'الجزء الثلاثون (جزء عم)', startPage: 582, startSurah: 78 },
 ];
 
+// اقتراحات سريعة
+const QUICK_SUGGESTIONS = [
+  { label: 'سورة الفاتحة', query: 'الفاتحة', type: 'surah' },
+  { label: 'سورة البقرة', query: 'البقرة', type: 'surah' },
+  { label: 'سورة يس', query: 'يس', type: 'surah' },
+  { label: 'سورة الرحمن', query: 'الرحمن', type: 'surah' },
+  { label: 'سورة الملك', query: 'الملك', type: 'surah' },
+  { label: 'جزء 30', query: 'جزء 30', type: 'juz' },
+  { label: 'جزء عم', query: 'جزء عم', type: 'juz' },
+  { label: 'الجزء الأول', query: 'الجزء الأول', type: 'juz' },
+];
+
 export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'ayah' | 'surah' | 'juz'>('all');
+  const [filter, setFilter] = useState<'all' | 'surah' | 'juz'>('all');
   const { data: surahs, isLoading: surahsLoading } = useSurahs();
 
-  const search = async (searchQuery: string) => {
+  // دالة البحث المحلية
+  const searchLocal = (searchQuery: string) => {
     if (!searchQuery.trim() || searchQuery.length < 2) {
       setResults([]);
       return;
@@ -64,81 +76,72 @@ export default function SearchPage() {
 
     setIsLoading(true);
     const newResults: SearchResult[] = [];
+    const lowerQuery = searchQuery.trim().toLowerCase();
 
-    try {
-      const lowerQuery = searchQuery.trim().toLowerCase();
-
-      // 1. البحث في السور
-      if (filter === 'all' || filter === 'surah') {
-        surahs?.forEach((surah) => {
-          const surahName = surah.name.toLowerCase();
-          const surahEng = surah.englishName.toLowerCase();
-          if (surahName.includes(lowerQuery) || surahEng.includes(lowerQuery)) {
-            newResults.push({
-              type: 'surah',
-              title: surah.name,
-              subtitle: `سورة ${surah.name} · ${toArabicNumeral(surah.numberOfAyahs)} آية · ${surah.revelationType === 'Meccan' ? 'مكية' : 'مدنية'}`,
-              link: `/page/${surah.number === 1 ? 1 : surah.number === 9 ? 187 : (surah.number - 1) * 20 + 1}`,
-              number: surah.number
-            });
-          }
-        });
-      }
-
-      // 2. البحث في الأجزاء
-      if (filter === 'all' || filter === 'juz') {
-        JUZ_DATA.forEach((juz) => {
-          const juzName = juz.name.toLowerCase();
-          if (juzName.includes(lowerQuery) || `جزء ${juz.number}`.includes(lowerQuery)) {
-            newResults.push({
-              type: 'juz',
-              title: juz.name,
-              subtitle: `يبدأ من صفحة ${toArabicNumeral(juz.startPage)}`,
-              link: `/page/${juz.startPage}`,
-              number: juz.number
-            });
-          }
-        });
-      }
-
-      // 3. البحث في الآيات (API)
-      if (filter === 'all' || filter === 'ayah') {
-        try {
-          const res = await fetch(`https://api.alquran.cloud/v1/search/${encodeURIComponent(searchQuery)}/quran-uthmani`);
-          const json = await res.json();
-          
-          if (json.code === 200 && json.data?.matches) {
-            json.data.matches.slice(0, 10).forEach((match: any) => {
-              newResults.push({
-                type: 'ayah',
-                title: `${match.surah.name} · آية ${toArabicNumeral(match.numberInSurah)}`,
-                subtitle: match.text.substring(0, 100) + '...',
-                link: `/page/${match.page}`,
-                preview: match.text,
-                number: match.numberInSurah
-              });
-            });
-          }
-        } catch (error) {
-          console.error('API error:', error);
+    // 1. البحث في السور
+    if (filter === 'all' || filter === 'surah') {
+      surahs?.forEach((surah) => {
+        const surahName = surah.name.toLowerCase();
+        const surahEng = surah.englishName.toLowerCase();
+        // البحث بالاسم العربي أو الإنجليزي أو بالرقم
+        if (
+          surahName.includes(lowerQuery) || 
+          surahEng.includes(lowerQuery) ||
+          (surah.number === parseInt(lowerQuery))
+        ) {
+          const startPage = surah.number === 1 ? 1 : SURAH_START_PAGES[surah.number - 1];
+          newResults.push({
+            type: 'surah',
+            title: surah.name,
+            subtitle: `سورة ${surah.name} · ${toArabicNumeral(surah.numberOfAyahs)} آية · ${surah.revelationType === 'Meccan' ? 'مكية' : 'مدنية'}`,
+            link: `/page/${startPage}`,
+            number: surah.number
+          });
         }
-      }
-
-      // ترتيب النتائج
-      setResults(newResults);
-    } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      setIsLoading(false);
+      });
     }
+
+    // 2. البحث في الأجزاء
+    if (filter === 'all' || filter === 'juz') {
+      JUZ_DATA.forEach((juz) => {
+        const juzName = juz.name.toLowerCase();
+        const juzNumber = `جزء ${juz.number}`;
+        // البحث بالاسم أو بالرقم
+        if (
+          juzName.includes(lowerQuery) || 
+          juzNumber.includes(lowerQuery) ||
+          (juz.number === parseInt(lowerQuery))
+        ) {
+          newResults.push({
+            type: 'juz',
+            title: juz.name,
+            subtitle: `يبدأ من صفحة ${toArabicNumeral(juz.startPage)}`,
+            link: `/page/${juz.startPage}`,
+            number: juz.number
+          });
+        }
+      });
+    }
+
+    // ترتيب النتائج حسب النوع والأولوية
+    newResults.sort((a, b) => {
+      if (a.type === 'surah' && b.type !== 'surah') return -1;
+      if (a.type !== 'surah' && b.type === 'surah') return 1;
+      return a.number - b.number;
+    });
+
+    setResults(newResults);
+    setIsLoading(false);
   };
 
+  // البحث عند تغيير النص أو الفلتر
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (query) search(query);
-    }, 500);
+      if (query) searchLocal(query);
+      else setResults([]);
+    }, 300);
     return () => clearTimeout(timer);
-  }, [query, filter]);
+  }, [query, filter, surahs]);
 
   const getResultIcon = (type: string) => {
     switch (type) {
@@ -150,10 +153,15 @@ export default function SearchPage() {
 
   const getResultBadge = (type: string) => {
     switch (type) {
-      case 'surah': return <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">سورة</span>;
-      case 'juz': return <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">جزء</span>;
-      default: return <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">آية</span>;
+      case 'surah': return <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">سورة</span>;
+      case 'juz': return <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">جزء</span>;
+      default: return null;
     }
+  };
+
+  const handleSuggestion = (suggestionQuery: string) => {
+    setQuery(suggestionQuery);
+    searchLocal(suggestionQuery);
   };
 
   return (
@@ -170,7 +178,7 @@ export default function SearchPage() {
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="ابحث في القرآن (سورة، آية، جزء)..."
+              placeholder="ابحث عن سورة أو جزء (مثال: البقرة، يس، جزء 30)..."
               className="pr-9 font-ui text-right"
               dir="rtl"
             />
@@ -184,7 +192,6 @@ export default function SearchPage() {
         <div className="mx-auto flex max-w-2xl gap-1 px-4 py-2">
           {[
             { id: 'all', label: 'الكل' },
-            { id: 'ayah', label: 'آيات' },
             { id: 'surah', label: 'سور' },
             { id: 'juz', label: 'أجزاء' }
           ].map((tab) => (
@@ -209,20 +216,24 @@ export default function SearchPage() {
           <div className="mt-12 text-center">
             <Search className="mx-auto h-12 w-12 text-muted-foreground/50 mb-3" />
             <p className="font-ui text-muted-foreground">
-              اكتب كلمة أو جزءاً من آية، أو اسم سورة، أو رقم جزء للبحث
+              ابحث عن سورة أو جزء من القرآن الكريم
             </p>
             <div className="mt-6 flex flex-wrap gap-2 justify-center">
-              <button onClick={() => setQuery('الفاتحة')} className="rounded-full border border-primary/20 px-3 py-1 text-sm hover:bg-primary/10">الفاتحة</button>
-              <button onClick={() => setQuery('آية الكرسي')} className="rounded-full border border-primary/20 px-3 py-1 text-sm hover:bg-primary/10">آية الكرسي</button>
-              <button onClick={() => setQuery('جزء 30')} className="rounded-full border border-primary/20 px-3 py-1 text-sm hover:bg-primary/10">جزء 30</button>
-              <button onClick={() => setQuery('يس')} className="rounded-full border border-primary/20 px-3 py-1 text-sm hover:bg-primary/10">سورة يس</button>
-              <button onClick={() => setQuery('الرحمن')} className="rounded-full border border-primary/20 px-3 py-1 text-sm hover:bg-primary/10">الرحمن</button>
+              {QUICK_SUGGESTIONS.map((suggestion) => (
+                <button
+                  key={suggestion.query}
+                  onClick={() => handleSuggestion(suggestion.query)}
+                  className="rounded-full border border-primary/20 px-3 py-1 text-sm hover:bg-primary/10 transition-colors"
+                >
+                  {suggestion.label}
+                </button>
+              ))}
             </div>
           </div>
         )}
 
         {/* Loading skeletons */}
-        {isLoading && (
+        {(isLoading || surahsLoading) && (
           <div className="space-y-3 pt-2">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-24 w-full rounded-xl" />
@@ -231,20 +242,20 @@ export default function SearchPage() {
         )}
 
         {/* No results */}
-        {!isLoading && query && results.length === 0 && (
+        {!isLoading && !surahsLoading && query && results.length === 0 && (
           <div className="mt-12 text-center">
             <X className="mx-auto h-12 w-12 text-muted-foreground/50 mb-3" />
             <p className="font-ui text-muted-foreground">
               لا توجد نتائج لـ «{query}»
             </p>
             <p className="font-ui text-xs text-muted-foreground mt-2">
-              جرب كلمة أخرى أو ابحث باسم سورة أو رقم جزء
+              جرب اسم سورة آخر أو رقم جزء (مثال: البقرة، يس، جزء 30)
             </p>
           </div>
         )}
 
         {/* Results */}
-        {!isLoading && results.length > 0 && (
+        {!isLoading && !surahsLoading && results.length > 0 && (
           <>
             <p className="mb-3 font-ui text-sm text-muted-foreground">
               {toArabicNumeral(results.length)} نتيجة
@@ -267,14 +278,9 @@ export default function SearchPage() {
                           {result.title}
                         </h3>
                       </div>
-                      <p className="font-ui text-sm text-muted-foreground line-clamp-2">
+                      <p className="font-ui text-sm text-muted-foreground">
                         {result.subtitle}
                       </p>
-                      {result.preview && (
-                        <p className="font-quran text-base mt-2 text-right text-foreground/80 line-clamp-2">
-                          {result.preview}
-                        </p>
-                      )}
                     </div>
                     <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-2" />
                   </div>

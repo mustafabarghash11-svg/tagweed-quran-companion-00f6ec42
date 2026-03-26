@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Search, Sun, Moon, Menu, ChevronLeft, FileText, User, LogIn, Bookmark } from 'lucide-react';
+import { BookOpen, Search, Sun, Moon, Menu, ChevronLeft, FileText, User, LogIn, Settings } from 'lucide-react';
 import { useSurahs } from '@/hooks/use-quran';
 import { toArabicNumeral, SURAH_START_PAGES } from '@/lib/quran-api';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,12 +36,12 @@ export default function Index() {
             <Search className="h-4.5 w-4.5" />
           </Link>
 
-          {/* زر العلامات المرجعية (جديد) */}
+          {/* زر العلامات المرجعية */}
           <Link
             to="/bookmarks"
             className="relative flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
           >
-            <Bookmark className="h-4 w-4" />
+            <BookOpen className="h-4 w-4" />
             {bookmarks.length > 0 && (
               <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
                 {toArabicNumeral(bookmarks.length)}
@@ -76,7 +76,15 @@ export default function Index() {
             {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
 
-          {/* زر القائمة */}
+          {/* زر الإعدادات */}
+          <Link
+            to="/settings"
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+          >
+            <Settings className="h-4 w-4" />
+          </Link>
+
+          {/* زر القائمة (ثلاث خطوط) */}
           <button
             onClick={() => setSidebarOpen(true)}
             className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
@@ -88,7 +96,7 @@ export default function Index() {
 
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Hero */}
+      {/* باقي المحتوى كما هو */}
       <header className="flex flex-col items-center gap-2 px-4 py-8">
         <div className="mb-1 flex items-center gap-3">
           <div className="h-px w-16 bg-gradient-to-r from-transparent to-primary/40" />
@@ -164,4 +172,4 @@ export default function Index() {
       </section>
     </div>
   );
-}
+          }

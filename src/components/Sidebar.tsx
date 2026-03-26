@@ -22,13 +22,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <>
-      {/* الخلفية المظللة */}
       <div
         className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
       
-      {/* القائمة الجانبية */}
       <div className="fixed right-0 top-0 z-50 h-full w-64 bg-card shadow-xl animate-in slide-in-from-right duration-300">
         <div className="flex items-center justify-between border-b border-primary/10 p-4">
           <h2 className="font-ui text-lg font-bold text-primary">القائمة</h2>
@@ -59,4 +57,4 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       </div>
     </>
   );
-          }
+      }

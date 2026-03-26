@@ -8,8 +8,9 @@ import { AudioPlayer } from '@/components/AudioPlayer';
 import { Sidebar } from '@/components/Sidebar';
 import { useAudio } from '@/context/AudioContext.tsx';
 import { Button } from '@/components/ui/button';
-import { Home, ArrowUp, Play, Pause, Maximize2, Minimize2 } from 'lucide-react';
+import { Home, ArrowUp, Play, Pause, Maximize2, Minimize2, Sun, Moon, Search, Menu } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useSettings } from '@/context/SettingsContext';
 
 export default function QuranReader() {
   const { pageNumber } = useParams();
@@ -21,7 +22,8 @@ export default function QuranReader() {
   const [fullscreen, setFullscreen] = useState(false);
   const [lastTap, setLastTap] = useState(0);
   const [lastTapPosition, setLastTapPosition] = useState<'left' | 'right' | null>(null);
-  const [isNavigating, setIsNavigating] = useState(false); // مهلة التنقل
+  const [isNavigating, setIsNavigating] = useState(false);
+  const { theme, toggleTheme } = useSettings();
   const { playAyah, togglePlay, stop, nowPlaying, isPlaying } = useAudio();
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -54,7 +56,6 @@ export default function QuranReader() {
 
   // ========== دالة التنقل مع مهلة ==========
   const navigateWithDelay = (direction: 'next' | 'prev') => {
-    // منع التنقل إذا كان هناك تنقل جاري
     if (isNavigating) return;
     
     setIsNavigating(true);
@@ -65,7 +66,6 @@ export default function QuranReader() {
       handlePageChange(page - 1);
     }
     
-    // إعادة تعيين المهلة بعد 500 مللي ثانية
     if (navigationTimeoutRef.current) {
       clearTimeout(navigationTimeoutRef.current);
     }
@@ -77,11 +77,8 @@ export default function QuranReader() {
   // ========== التنقل بالنقر المزدوج في وضع ملء الشاشة ==========
   const handleFullscreenDoubleTap = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (!fullscreen) return;
-    
-    // منع التنقل المتكرر
     if (isNavigating) return;
     
-    // الحصول على موقع النقر
     let clientX: number;
     if ('touches' in e) {
       clientX = e.touches[0].clientX;
@@ -94,12 +91,10 @@ export default function QuranReader() {
     const now = Date.now();
     const timeDiff = now - lastTap;
     
-    // تحديد الجانب
     let side: 'left' | 'right' | null = null;
     if (clientX < third) side = 'left';
     else if (clientX > screenWidth - third) side = 'right';
     
-    // نقر مزدوج على نفس الجانب (في خلال 300 مللي)
     if (timeDiff < 300 && timeDiff > 0 && lastTapPosition === side) {
       if (side === 'right') {
         navigateWithDelay('next');
@@ -152,7 +147,6 @@ export default function QuranReader() {
   const pageIsPlaying =
     isPlaying && nowPlaying && data?.ayahs?.some((a) => a.number === nowPlaying.ayahNumber);
 
-  // تنظيف المهلة عند إزالة المكون
   useEffect(() => {
     return () => {
       if (navigationTimeoutRef.current) {
@@ -168,13 +162,51 @@ export default function QuranReader() {
       style={{ height: '100dvh', overflow: 'hidden' }}
       dir="rtl"
     >
-      {/* شريط المعلومات العلوي — يختفي في وضع ملء الشاشة */}
+      {/* شريط المعلومات العلوي المخصص — مع زر ملء الشاشة */}
       {!fullscreen && (
-        <TopInfoBar
-          pageNumber={page}
-          ayahs={data?.ayahs}
-          onMenuClick={() => setSidebarOpen(true)}
-        />
+        <div className="sticky top-0 z-50 border-b border-primary/20 bg-card/95 backdrop-blur-sm">
+          <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-2">
+              {/* زر البحث */}
+              <Link
+                to="/search"
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              >
+                <Search className="h-4.5 w-4.5" />
+              </Link>
+              
+              {/* زر الوضع الليلي/النهاري */}
+              <button
+                onClick={toggleTheme}
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              >
+                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </button>
+              
+              {/* زر القائمة (3 خطوط) */}
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              >
+                <Menu className="h-4 w-4" />
+              </button>
+              
+              {/* زر ملء الشاشة */}
+              <button
+                onClick={toggleFullscreen}
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                title={fullscreen ? 'إلغاء ملء الشاشة' : 'ملء الشاشة'}
+              >
+                {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </button>
+            </div>
+            
+            {/* رقم الصفحة */}
+            <div className="font-ui text-sm text-muted-foreground">
+              صفحة {page}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* منطقة القراءة القابلة للتمرير */}
@@ -194,14 +226,7 @@ export default function QuranReader() {
         </>
       )}
 
-      {/* زر ملء الشاشة — دائماً ظاهر */}
-      <button
-        onClick={toggleFullscreen}
-        className="fixed top-3 left-3 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-card/90 shadow-md border border-primary/10 text-primary hover:bg-primary/10 active:scale-95 transition-all"
-        title={fullscreen ? 'إلغاء ملء الشاشة' : 'ملء الشاشة'}
-      >
-        {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-      </button>
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* طبقة شفافة للتنقل بالنقر المزدوج في وضع ملء الشاشة */}
       {fullscreen && (
@@ -209,7 +234,6 @@ export default function QuranReader() {
           className="fixed inset-0 z-30"
           onDoubleClick={handleFullscreenDoubleTap}
           onTouchStart={(e) => {
-            // للجوال: نستخدم مؤقت لتمييز النقر المزدوج
             const touch = e.touches[0];
             const now = Date.now();
             const side = touch.clientX < window.innerWidth / 3 ? 'left' : 
@@ -275,4 +299,4 @@ export default function QuranReader() {
       )}
     </div>
   );
-}
+                                     }

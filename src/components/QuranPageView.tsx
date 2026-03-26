@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toArabicNumeral } from '@/lib/quran-api';
 import type { Ayah } from '@/lib/quran-api';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -182,6 +183,19 @@ export function QuranPageView({ ayahs, isLoading }: QuranPageViewProps) {
   const { playAyah, togglePlay, nowPlaying, isPlaying } = useAudio();
   const { fontSize } = useSettings();
 
+  const [searchParams] = useSearchParams();
+  const highlightAyah = searchParams.get('ayah') ? parseInt(searchParams.get('ayah')!) : null;
+  const highlightRef = useRef<HTMLDivElement>(null);
+
+  // scroll للآية المميزة عند التحميل
+  useEffect(() => {
+    if (!highlightAyah || !highlightRef.current) return;
+    const timer = setTimeout(() => {
+      highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [highlightAyah, ayahs]);
+
   const [showTranslation, setShowTranslation] = useState(false);
   const [showTajweed, setShowTajweed] = useState(false);
   const [selectedAyah, setSelectedAyah] = useState<Ayah | null>(null);
@@ -275,7 +289,10 @@ export function QuranPageView({ ayahs, isLoading }: QuranPageViewProps) {
             const thisIsPlaying = isCurrentAyah && isPlaying;
 
             return (
-              <div key={ayah.number}>
+              <div
+                key={ayah.number}
+                ref={highlightAyah === ayah.number ? highlightRef : undefined}
+              >
                 {isSurahStart && (
                   <div className="my-6 flex flex-col items-center gap-3">
                     <div className="w-full rounded-lg border border-primary/30 bg-primary/5 px-6 py-3 text-center">
@@ -287,9 +304,11 @@ export function QuranPageView({ ayahs, isLoading }: QuranPageViewProps) {
 
                 {/* الآية — مزامنة التلاوة */}
                 <span
-                  className={`inline transition-all duration-200 rounded px-0.5 ${
+                  className={`inline transition-all duration-300 rounded px-0.5 ${
                     isCurrentAyah
                       ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
+                      : highlightAyah === ayah.number
+                      ? 'bg-amber-400/20 ring-2 ring-amber-400/50 ring-offset-1'
                       : ''
                   }`}
                   style={{ fontSize: `${fontSize}px`, lineHeight: '3' }}

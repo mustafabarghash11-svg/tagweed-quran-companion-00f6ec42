@@ -21,10 +21,12 @@ export default function QuranReader() {
   const [fullscreen, setFullscreen] = useState(false);
   const [lastTap, setLastTap] = useState(0);
   const [lastTapPosition, setLastTapPosition] = useState<'left' | 'right' | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false); // مهلة التنقل
   const { playAyah, togglePlay, stop, nowPlaying, isPlaying } = useAudio();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // ========== ملء الشاشة ==========
   const toggleFullscreen = async () => {
@@ -50,9 +52,34 @@ export default function QuranReader() {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  // ========== دالة التنقل مع مهلة ==========
+  const navigateWithDelay = (direction: 'next' | 'prev') => {
+    // منع التنقل إذا كان هناك تنقل جاري
+    if (isNavigating) return;
+    
+    setIsNavigating(true);
+    
+    if (direction === 'next' && page < 604) {
+      handlePageChange(page + 1);
+    } else if (direction === 'prev' && page > 1) {
+      handlePageChange(page - 1);
+    }
+    
+    // إعادة تعيين المهلة بعد 500 مللي ثانية
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current);
+    }
+    navigationTimeoutRef.current = setTimeout(() => {
+      setIsNavigating(false);
+    }, 500);
+  };
+
   // ========== التنقل بالنقر المزدوج في وضع ملء الشاشة ==========
   const handleFullscreenDoubleTap = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (!fullscreen) return;
+    
+    // منع التنقل المتكرر
+    if (isNavigating) return;
     
     // الحصول على موقع النقر
     let clientX: number;
@@ -72,12 +99,12 @@ export default function QuranReader() {
     if (clientX < third) side = 'left';
     else if (clientX > screenWidth - third) side = 'right';
     
-    // نقر مزدوج على نفس الجانب
+    // نقر مزدوج على نفس الجانب (في خلال 300 مللي)
     if (timeDiff < 300 && timeDiff > 0 && lastTapPosition === side) {
-      if (side === 'right' && page < 604) {
-        handlePageChange(page + 1);
-      } else if (side === 'left' && page > 1) {
-        handlePageChange(page - 1);
+      if (side === 'right') {
+        navigateWithDelay('next');
+      } else if (side === 'left') {
+        navigateWithDelay('prev');
       }
     }
     
@@ -124,6 +151,15 @@ export default function QuranReader() {
 
   const pageIsPlaying =
     isPlaying && nowPlaying && data?.ayahs?.some((a) => a.number === nowPlaying.ayahNumber);
+
+  // تنظيف المهلة عند إزالة المكون
+  useEffect(() => {
+    return () => {
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div
@@ -176,16 +212,15 @@ export default function QuranReader() {
             // للجوال: نستخدم مؤقت لتمييز النقر المزدوج
             const touch = e.touches[0];
             const now = Date.now();
-            if (now - lastTap < 300 && lastTapPosition === 
-              (touch.clientX < window.innerWidth / 3 ? 'left' : 
-               touch.clientX > window.innerWidth * 2 / 3 ? 'right' : null)) {
-              handleFullscreenDoubleTap(e);
+            const side = touch.clientX < window.innerWidth / 3 ? 'left' : 
+                         touch.clientX > window.innerWidth * 2 / 3 ? 'right' : null;
+            
+            if (now - lastTap < 300 && lastTapPosition === side && !isNavigating) {
+              if (side === 'right') navigateWithDelay('next');
+              else if (side === 'left') navigateWithDelay('prev');
             }
             setLastTap(now);
-            setLastTapPosition(
-              touch.clientX < window.innerWidth / 3 ? 'left' :
-              touch.clientX > window.innerWidth * 2 / 3 ? 'right' : null
-            );
+            setLastTapPosition(side);
           }}
           style={{ background: 'transparent' }}
         />
@@ -240,4 +275,4 @@ export default function QuranReader() {
       )}
     </div>
   );
-      }
+}

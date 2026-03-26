@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Search, Sun, Moon, Menu, ChevronLeft, FileText, User, LogIn } from 'lucide-react';
+import { BookOpen, Search, Sun, Moon, Menu, ChevronLeft, FileText, User, LogIn, Bookmark } from 'lucide-react';
 import { useSurahs } from '@/hooks/use-quran';
 import { toArabicNumeral, SURAH_START_PAGES } from '@/lib/quran-api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSettings } from '@/context/SettingsContext.tsx';
 import { useAuth } from '@/context/AuthContext.tsx';
 import { Sidebar } from '@/components/Sidebar';
+import { useBookmarks } from '@/context/BookmarksContext';
 
 // آخر صفحة مقروءة
 function getLastPage(): number | null {
@@ -18,6 +19,7 @@ export default function Index() {
   const { data: surahs, isLoading } = useSurahs();
   const { theme, toggleTheme } = useSettings();
   const { user } = useAuth();
+  const { bookmarks } = useBookmarks();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const lastPage = getLastPage();
 
@@ -26,14 +28,30 @@ export default function Index() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-5 pb-2">
         <div className="flex items-center gap-1.5">
+          {/* زر البحث */}
           <Link
             to="/search"
             className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
           >
             <Search className="h-4.5 w-4.5" />
           </Link>
+
+          {/* زر العلامات المرجعية (جديد) */}
+          <Link
+            to="/bookmarks"
+            className="relative flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+          >
+            <Bookmark className="h-4 w-4" />
+            {bookmarks.length > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                {toArabicNumeral(bookmarks.length)}
+              </span>
+            )}
+          </Link>
         </div>
+
         <div className="flex items-center gap-1.5">
+          {/* زر الملف الشخصي */}
           {user ? (
             <Link
               to="/profile"
@@ -49,12 +67,16 @@ export default function Index() {
               <LogIn className="h-4 w-4" />
             </Link>
           )}
+
+          {/* زر الوضع الليلي/النهاري */}
           <button
             onClick={toggleTheme}
             className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
           >
             {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
+
+          {/* زر القائمة */}
           <button
             onClick={() => setSidebarOpen(true)}
             className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"

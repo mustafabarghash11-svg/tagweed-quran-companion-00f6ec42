@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Search, Loader2, BookOpen, BookMarked, Filter, X, ChevronRight } from 'lucide-react';
+import { ArrowRight, Search, Loader2, BookOpen, BookMarked, X, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { toArabicNumeral, SURAH_START_PAGES } from '@/lib/quran-api';
+import { toArabicNumeral } from '@/lib/quran-api';
 import { useSurahs } from '@/hooks/use-quran';
 
 interface SearchResult {
@@ -16,39 +16,55 @@ interface SearchResult {
 
 // بيانات الأجزاء كاملة
 const JUZ_DATA = [
-  { number: 1, name: 'الجزء الأول', startPage: 1, startSurah: 1 },
-  { number: 2, name: 'الجزء الثاني', startPage: 22, startSurah: 2 },
-  { number: 3, name: 'الجزء الثالث', startPage: 42, startSurah: 2 },
-  { number: 4, name: 'الجزء الرابع', startPage: 62, startSurah: 3 },
-  { number: 5, name: 'الجزء الخامس', startPage: 82, startSurah: 4 },
-  { number: 6, name: 'الجزء السادس', startPage: 102, startSurah: 4 },
-  { number: 7, name: 'الجزء السابع', startPage: 122, startSurah: 5 },
-  { number: 8, name: 'الجزء الثامن', startPage: 142, startSurah: 6 },
-  { number: 9, name: 'الجزء التاسع', startPage: 162, startSurah: 7 },
-  { number: 10, name: 'الجزء العاشر', startPage: 182, startSurah: 8 },
-  { number: 11, name: 'الجزء الحادي عشر', startPage: 202, startSurah: 9 },
-  { number: 12, name: 'الجزء الثاني عشر', startPage: 222, startSurah: 10 },
-  { number: 13, name: 'الجزء الثالث عشر', startPage: 242, startSurah: 11 },
-  { number: 14, name: 'الجزء الرابع عشر', startPage: 262, startSurah: 12 },
-  { number: 15, name: 'الجزء الخامس عشر', startPage: 282, startSurah: 13 },
-  { number: 16, name: 'الجزء السادس عشر', startPage: 302, startSurah: 15 },
-  { number: 17, name: 'الجزء السابع عشر', startPage: 322, startSurah: 17 },
-  { number: 18, name: 'الجزء الثامن عشر', startPage: 342, startSurah: 18 },
-  { number: 19, name: 'الجزء التاسع عشر', startPage: 362, startSurah: 19 },
-  { number: 20, name: 'الجزء العشرون', startPage: 382, startSurah: 20 },
-  { number: 21, name: 'الجزء الحادي والعشرون', startPage: 402, startSurah: 21 },
-  { number: 22, name: 'الجزء الثاني والعشرون', startPage: 422, startSurah: 22 },
-  { number: 23, name: 'الجزء الثالث والعشرون', startPage: 442, startSurah: 23 },
-  { number: 24, name: 'الجزء الرابع والعشرون', startPage: 462, startSurah: 24 },
-  { number: 25, name: 'الجزء الخامس والعشرون', startPage: 482, startSurah: 25 },
-  { number: 26, name: 'الجزء السادس والعشرون', startPage: 502, startSurah: 26 },
-  { number: 27, name: 'الجزء السابع والعشرون', startPage: 522, startSurah: 27 },
-  { number: 28, name: 'الجزء الثامن والعشرون', startPage: 542, startSurah: 28 },
-  { number: 29, name: 'الجزء التاسع والعشرون', startPage: 562, startSurah: 29 },
-  { number: 30, name: 'الجزء الثلاثون (جزء عم)', startPage: 582, startSurah: 78 },
+  { number: 1, name: 'الجزء الأول', startPage: 1 },
+  { number: 2, name: 'الجزء الثاني', startPage: 22 },
+  { number: 3, name: 'الجزء الثالث', startPage: 42 },
+  { number: 4, name: 'الجزء الرابع', startPage: 62 },
+  { number: 5, name: 'الجزء الخامس', startPage: 82 },
+  { number: 6, name: 'الجزء السادس', startPage: 102 },
+  { number: 7, name: 'الجزء السابع', startPage: 122 },
+  { number: 8, name: 'الجزء الثامن', startPage: 142 },
+  { number: 9, name: 'الجزء التاسع', startPage: 162 },
+  { number: 10, name: 'الجزء العاشر', startPage: 182 },
+  { number: 11, name: 'الجزء الحادي عشر', startPage: 202 },
+  { number: 12, name: 'الجزء الثاني عشر', startPage: 222 },
+  { number: 13, name: 'الجزء الثالث عشر', startPage: 242 },
+  { number: 14, name: 'الجزء الرابع عشر', startPage: 262 },
+  { number: 15, name: 'الجزء الخامس عشر', startPage: 282 },
+  { number: 16, name: 'الجزء السادس عشر', startPage: 302 },
+  { number: 17, name: 'الجزء السابع عشر', startPage: 322 },
+  { number: 18, name: 'الجزء الثامن عشر', startPage: 342 },
+  { number: 19, name: 'الجزء التاسع عشر', startPage: 362 },
+  { number: 20, name: 'الجزء العشرون', startPage: 382 },
+  { number: 21, name: 'الجزء الحادي والعشرون', startPage: 402 },
+  { number: 22, name: 'الجزء الثاني والعشرون', startPage: 422 },
+  { number: 23, name: 'الجزء الثالث والعشرون', startPage: 442 },
+  { number: 24, name: 'الجزء الرابع والعشرون', startPage: 462 },
+  { number: 25, name: 'الجزء الخامس والعشرون', startPage: 482 },
+  { number: 26, name: 'الجزء السادس والعشرون', startPage: 502 },
+  { number: 27, name: 'الجزء السابع والعشرون', startPage: 522 },
+  { number: 28, name: 'الجزء الثامن والعشرون', startPage: 542 },
+  { number: 29, name: 'الجزء التاسع والعشرون', startPage: 562 },
+  { number: 30, name: 'الجزء الثلاثون (جزء عم)', startPage: 582 },
 ];
 
-// اقتراحات سريعة
+// بيانات أول صفحة لكل سورة (بدون API)
+const SURAH_START_PAGES_LOCAL: Record<number, number> = {
+  1: 1, 2: 2, 3: 50, 4: 77, 5: 106, 6: 128, 7: 151, 8: 177, 9: 187, 10: 208,
+  11: 221, 12: 235, 13: 249, 14: 255, 15: 262, 16: 267, 17: 282, 18: 293, 19: 305,
+  20: 312, 21: 322, 22: 332, 23: 342, 24: 350, 25: 359, 26: 367, 27: 377, 28: 385,
+  29: 396, 30: 404, 31: 411, 32: 415, 33: 418, 34: 428, 35: 434, 36: 440, 37: 446,
+  38: 453, 39: 458, 40: 467, 41: 477, 42: 483, 43: 489, 44: 496, 45: 499, 46: 502,
+  47: 507, 48: 511, 49: 514, 50: 518, 51: 520, 52: 523, 53: 526, 54: 528, 55: 531,
+  56: 534, 57: 537, 58: 542, 59: 545, 60: 549, 61: 551, 62: 553, 63: 554, 64: 556,
+  65: 558, 66: 560, 67: 562, 68: 564, 69: 566, 70: 568, 71: 570, 72: 572, 73: 574,
+  74: 575, 75: 577, 76: 578, 77: 580, 78: 582, 79: 583, 80: 585, 81: 586, 82: 587,
+  83: 587, 84: 589, 85: 590, 86: 591, 87: 591, 88: 592, 89: 593, 90: 594, 91: 595,
+  92: 595, 93: 596, 94: 596, 95: 597, 96: 597, 97: 598, 98: 598, 99: 599, 100: 599,
+  101: 600, 102: 600, 103: 601, 104: 601, 105: 601, 106: 602, 107: 602, 108: 602,
+  109: 603, 110: 603, 111: 603, 112: 604, 113: 604, 114: 604
+};
+
 const QUICK_SUGGESTIONS = [
   { label: 'سورة الفاتحة', query: 'الفاتحة', type: 'surah' },
   { label: 'سورة البقرة', query: 'البقرة', type: 'surah' },
@@ -68,32 +84,33 @@ export default function SearchPage() {
   const { data: surahs, isLoading: surahsLoading } = useSurahs();
 
   // دالة البحث المحلية
-  const searchLocal = (searchQuery: string) => {
-    if (!searchQuery.trim() || searchQuery.length < 2) {
+  const searchLocal = () => {
+    if (!query.trim() || query.length < 2) {
       setResults([]);
       return;
     }
 
     setIsLoading(true);
     const newResults: SearchResult[] = [];
-    const lowerQuery = searchQuery.trim().toLowerCase();
+    const lowerQuery = query.trim().toLowerCase();
 
     // 1. البحث في السور
     if (filter === 'all' || filter === 'surah') {
       surahs?.forEach((surah) => {
         const surahName = surah.name.toLowerCase();
         const surahEng = surah.englishName.toLowerCase();
-        // البحث بالاسم العربي أو الإنجليزي أو بالرقم
+        const surahNumber = surah.number.toString();
+        
         if (
           surahName.includes(lowerQuery) || 
           surahEng.includes(lowerQuery) ||
-          (surah.number === parseInt(lowerQuery))
+          surahNumber === lowerQuery
         ) {
-          const startPage = surah.number === 1 ? 1 : SURAH_START_PAGES[surah.number - 1];
+          const startPage = SURAH_START_PAGES_LOCAL[surah.number] || 1;
           newResults.push({
             type: 'surah',
             title: surah.name,
-            subtitle: `سورة ${surah.name} · ${toArabicNumeral(surah.numberOfAyahs)} آية · ${surah.revelationType === 'Meccan' ? 'مكية' : 'مدنية'}`,
+            subtitle: `${surah.englishName} · ${toArabicNumeral(surah.numberOfAyahs)} آية · ${surah.revelationType === 'Meccan' ? 'مكية' : 'مدنية'}`,
             link: `/page/${startPage}`,
             number: surah.number
           });
@@ -106,11 +123,12 @@ export default function SearchPage() {
       JUZ_DATA.forEach((juz) => {
         const juzName = juz.name.toLowerCase();
         const juzNumber = `جزء ${juz.number}`;
-        // البحث بالاسم أو بالرقم
+        const juzNumberOnly = juz.number.toString();
+        
         if (
           juzName.includes(lowerQuery) || 
           juzNumber.includes(lowerQuery) ||
-          (juz.number === parseInt(lowerQuery))
+          juzNumberOnly === lowerQuery
         ) {
           newResults.push({
             type: 'juz',
@@ -123,13 +141,8 @@ export default function SearchPage() {
       });
     }
 
-    // ترتيب النتائج حسب النوع والأولوية
-    newResults.sort((a, b) => {
-      if (a.type === 'surah' && b.type !== 'surah') return -1;
-      if (a.type !== 'surah' && b.type === 'surah') return 1;
-      return a.number - b.number;
-    });
-
+    // ترتيب النتائج
+    newResults.sort((a, b) => a.number - b.number);
     setResults(newResults);
     setIsLoading(false);
   };
@@ -137,8 +150,7 @@ export default function SearchPage() {
   // البحث عند تغيير النص أو الفلتر
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (query) searchLocal(query);
-      else setResults([]);
+      searchLocal();
     }, 300);
     return () => clearTimeout(timer);
   }, [query, filter, surahs]);
@@ -161,7 +173,6 @@ export default function SearchPage() {
 
   const handleSuggestion = (suggestionQuery: string) => {
     setQuery(suggestionQuery);
-    searchLocal(suggestionQuery);
   };
 
   return (
@@ -292,4 +303,4 @@ export default function SearchPage() {
       </div>
     </div>
   );
-   }
+  }

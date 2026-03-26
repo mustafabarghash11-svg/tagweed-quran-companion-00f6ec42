@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuranPage } from '@/hooks/use-quran';
-import { TopInfoBar } from '@/components/TopInfoBar';
 import { QuranPageView } from '@/components/QuranPageView';
 import { PageNavigation } from '@/components/PageNavigation';
 import { AudioPlayer } from '@/components/AudioPlayer';
@@ -164,10 +163,11 @@ export default function QuranReader() {
       style={{ height: '100dvh', overflow: 'hidden' }}
       dir="rtl"
     >
-      {/* شريط المعلومات العلوي (البحث، الوضع الليلي، القائمة) */}
+      {/* الشريط العلوي الموحد — جميع الأزرار في مكان واحد */}
       {!fullscreen && (
         <div className="sticky top-0 z-50 border-b border-primary/20 bg-card/95 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
+          <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-2 px-4 py-2">
+            {/* المجموعة الأولى: أزرار رئيسية */}
             <div className="flex items-center gap-2">
               {/* زر البحث */}
               <Link
@@ -193,19 +193,8 @@ export default function QuranReader() {
                 <Menu className="h-4 w-4" />
               </button>
             </div>
-            
-            {/* رقم الصفحة */}
-            <div className="font-ui text-sm text-muted-foreground">
-              صفحة {page}
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* شريط الأدوات السفلي (تفسير + تجويد + ملء الشاشة) */}
-      {!fullscreen && (
-        <div className="sticky top-[57px] z-40 bg-card/95 backdrop-blur-sm border-b border-primary/20">
-          <div className="mx-auto max-w-3xl px-4 py-2 flex items-center justify-between gap-3">
+            {/* المجموعة الثانية: أزرار التفسير والتجويد */}
             <div className="flex items-center gap-2">
               {/* زر التفسير (تيسير) */}
               <button
@@ -228,8 +217,13 @@ export default function QuranReader() {
                 <BookOpen className="h-3.5 w-3.5" />
                 تجويد
               </button>
-              
-              {/* زر ملء الشاشة */}
+            </div>
+
+            {/* المجموعة الثالثة: رقم الصفحة + زر ملء الشاشة */}
+            <div className="flex items-center gap-3">
+              <div className="font-ui text-sm text-muted-foreground">
+                صفحة {page}
+              </div>
               <button
                 onClick={toggleFullscreen}
                 className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-ui text-xs transition-colors bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
@@ -239,9 +233,20 @@ export default function QuranReader() {
                 <span>ملء الشاشة</span>
               </button>
             </div>
-            <div className="w-16" /> {/* مسافة فارغة للمحاذاة */}
           </div>
         </div>
+      )}
+
+      {/* زر ملء الشاشة العائم في وضع ملء الشاشة (للخروج) */}
+      {fullscreen && (
+        <button
+          onClick={toggleFullscreen}
+          className="fixed top-4 right-4 z-50 flex items-center gap-1.5 rounded-lg bg-black/50 backdrop-blur-sm px-3 py-2 text-white hover:bg-black/70 transition-all"
+          title="إلغاء ملء الشاشة"
+        >
+          <Minimize2 className="h-4 w-4" />
+          <span className="text-sm">خروج</span>
+        </button>
       )}
 
       {/* منطقة القراءة القابلة للتمرير */}
@@ -339,4 +344,4 @@ export default function QuranReader() {
       )}
     </div>
   );
-  }
+                    }

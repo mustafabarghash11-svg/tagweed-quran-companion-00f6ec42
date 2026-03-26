@@ -8,7 +8,7 @@ import { AudioPlayer } from '@/components/AudioPlayer';
 import { Sidebar } from '@/components/Sidebar';
 import { useAudio } from '@/context/AudioContext.tsx';
 import { Button } from '@/components/ui/button';
-import { Home, ArrowUp, Play, Pause, Maximize2, Minimize2, Sun, Moon, Search, Menu } from 'lucide-react';
+import { Home, ArrowUp, Play, Pause, Maximize2, Minimize2, Sun, Moon, Search, Menu, Languages, BookOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSettings } from '@/context/SettingsContext';
 
@@ -20,6 +20,8 @@ export default function QuranReader() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [showTranslation, setShowTranslation] = useState(false);
+  const [showTajweed, setShowTajweed] = useState(false);
   const [lastTap, setLastTap] = useState(0);
   const [lastTapPosition, setLastTapPosition] = useState<'left' | 'right' | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -162,7 +164,7 @@ export default function QuranReader() {
       style={{ height: '100dvh', overflow: 'hidden' }}
       dir="rtl"
     >
-      {/* شريط المعلومات العلوي المخصص — مع زر ملء الشاشة */}
+      {/* شريط المعلومات العلوي (البحث، الوضع الليلي، القائمة) */}
       {!fullscreen && (
         <div className="sticky top-0 z-50 border-b border-primary/20 bg-card/95 backdrop-blur-sm">
           <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
@@ -190,15 +192,6 @@ export default function QuranReader() {
               >
                 <Menu className="h-4 w-4" />
               </button>
-              
-              {/* زر ملء الشاشة */}
-              <button
-                onClick={toggleFullscreen}
-                className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                title={fullscreen ? 'إلغاء ملء الشاشة' : 'ملء الشاشة'}
-              >
-                {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-              </button>
             </div>
             
             {/* رقم الصفحة */}
@@ -209,13 +202,60 @@ export default function QuranReader() {
         </div>
       )}
 
+      {/* شريط الأدوات السفلي (تفسير + تجويد + ملء الشاشة) */}
+      {!fullscreen && (
+        <div className="sticky top-[57px] z-40 bg-card/95 backdrop-blur-sm border-b border-primary/20">
+          <div className="mx-auto max-w-3xl px-4 py-2 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              {/* زر التفسير (تيسير) */}
+              <button
+                onClick={() => setShowTranslation(!showTranslation)}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-ui text-xs transition-colors ${
+                  showTranslation ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Languages className="h-3.5 w-3.5" />
+                تيسير
+              </button>
+              
+              {/* زر التجويد */}
+              <button
+                onClick={() => setShowTajweed(!showTajweed)}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-ui text-xs transition-colors ${
+                  showTajweed ? 'bg-amber-500 text-white' : 'bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                تجويد
+              </button>
+              
+              {/* زر ملء الشاشة */}
+              <button
+                onClick={toggleFullscreen}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-ui text-xs transition-colors bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                title={fullscreen ? 'إلغاء ملء الشاشة' : 'ملء الشاشة'}
+              >
+                {fullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                <span>ملء الشاشة</span>
+              </button>
+            </div>
+            <div className="w-16" /> {/* مسافة فارغة للمحاذاة */}
+          </div>
+        </div>
+      )}
+
       {/* منطقة القراءة القابلة للتمرير */}
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto overscroll-contain"
         onScroll={handleScroll}
       >
-        <QuranPageView ayahs={data?.ayahs} isLoading={isLoading} />
+        <QuranPageView 
+          ayahs={data?.ayahs} 
+          isLoading={isLoading}
+          showTranslation={showTranslation}
+          showTajweed={showTajweed}
+        />
       </div>
 
       {/* شريط التنقل السفلي — يختفي في وضع ملء الشاشة */}
@@ -299,4 +339,4 @@ export default function QuranReader() {
       )}
     </div>
   );
-                                     }
+  }

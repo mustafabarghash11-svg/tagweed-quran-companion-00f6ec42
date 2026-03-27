@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuranPage } from '@/hooks/use-quran';
+import { TopInfoBar } from '@/components/TopInfoBar';
 import { QuranPageView } from '@/components/QuranPageView';
 import { PageNavigation } from '@/components/PageNavigation';
 import { AudioPlayer } from '@/components/AudioPlayer';
@@ -24,6 +25,8 @@ export default function QuranReader() {
   const [lastTap, setLastTap] = useState(0);
   const [lastTapPosition, setLastTapPosition] = useState<'left' | 'right' | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [touchStartY, setTouchStartY] = useState(0);
+  const [isScrolling, setIsScrolling] = useState(false);
   const { theme, toggleTheme } = useSettings();
   const { playAyah, togglePlay, stop, nowPlaying, isPlaying } = useAudio();
 
@@ -76,9 +79,11 @@ export default function QuranReader() {
   };
 
   // ========== التنقل بالنقر المزدوج في وضع ملء الشاشة ==========
-  const handleFullscreenDoubleTap = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+  const handleFullscreenTap = (e: React.TouchEvent | React.MouseEvent) => {
     if (!fullscreen) return;
-    if (isNavigating) return;
+    
+    // منع التنقل إذا كان المستخدم يمرر (سحب عمودي)
+    if (isScrolling) return;
     
     let clientX: number;
     if ('touches' in e) {
@@ -96,7 +101,8 @@ export default function QuranReader() {
     if (clientX < third) side = 'left';
     else if (clientX > screenWidth - third) side = 'right';
     
-    if (timeDiff < 300 && timeDiff > 0 && lastTapPosition === side) {
+    // نقر مزدوج على نفس الجانب
+    if (timeDiff < 300 && timeDiff > 0 && lastTapPosition === side && !isNavigating) {
       if (side === 'right') {
         navigateWithDelay('next');
       } else if (side === 'left') {
@@ -106,6 +112,27 @@ export default function QuranReader() {
     
     setLastTap(now);
     setLastTapPosition(side);
+  };
+
+  // ========== التعامل مع اللمس (للتمرير الطبيعي) ==========
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartY(e.touches[0].clientY);
+    setIsScrolling(false);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    // إذا كان السحب عمودياً أكثر من 10 بكسل، نعتبره تمرير
+    const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
+    if (deltaY > 10) {
+      setIsScrolling(true);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    // إعادة تعيين بعد انتهاء اللمس
+    setTimeout(() => {
+      setIsScrolling(false);
+    }, 100);
   };
 
   // ========== دوال الصفحة ==========
@@ -162,49 +189,29 @@ export default function QuranReader() {
       className="flex flex-col bg-background"
       style={{ height: '100dvh', overflow: 'hidden' }}
       dir="rtl"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
-      {/* الشريط العلوي الموحد — بدون أزرار التفسير والتجويد */}
+      {/* الشريط العلوي الموحد */}
       {!fullscreen && (
         <div className="sticky top-0 z-50 border-b border-primary/20 bg-card/95 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-2">
-            {/* المجموعة الأولى: أزرار رئيسية */}
+          <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-2 px-4 py-2">
             <div className="flex items-center gap-2">
-              {/* زر البحث */}
-              <Link
-                to="/search"
-                className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              >
+              <Link to="/search" className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
                 <Search className="h-4.5 w-4.5" />
               </Link>
-              
-              {/* زر الوضع الليلي/النهاري */}
-              <button
-                onClick={toggleTheme}
-                className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              >
+              <button onClick={toggleTheme} className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
                 {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>
-              
-              {/* زر القائمة (3 خطوط) */}
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              >
+              <button onClick={() => setSidebarOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
                 <Menu className="h-4 w-4" />
               </button>
             </div>
-
-            {/* المجموعة الثانية: رقم الصفحة + زر ملء الشاشة */}
             <div className="flex items-center gap-3">
-              <div className="font-ui text-sm text-muted-foreground">
-                صفحة {page}
-              </div>
-              <button
-                onClick={toggleFullscreen}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-ui text-xs transition-colors bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
-                title={fullscreen ? 'إلغاء ملء الشاشة' : 'ملء الشاشة'}
-              >
-                {fullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+              <div className="font-ui text-sm text-muted-foreground">صفحة {page}</div>
+              <button onClick={toggleFullscreen} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-ui text-xs transition-colors bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80">
+                <Maximize2 className="h-3.5 w-3.5" />
                 <span>ملء الشاشة</span>
               </button>
             </div>
@@ -238,7 +245,7 @@ export default function QuranReader() {
         />
       </div>
 
-      {/* شريط التنقل السفلي — يختفي في وضع ملء الشاشة */}
+      {/* شريط التنقل السفلي */}
       {!fullscreen && (
         <>
           <PageNavigation currentPage={page} onPageChange={handlePageChange} />
@@ -252,55 +259,36 @@ export default function QuranReader() {
       {fullscreen && (
         <div
           className="fixed inset-0 z-30"
-          onDoubleClick={handleFullscreenDoubleTap}
-          onTouchStart={(e) => {
-            const touch = e.touches[0];
-            const now = Date.now();
-            const side = touch.clientX < window.innerWidth / 3 ? 'left' : 
-                         touch.clientX > window.innerWidth * 2 / 3 ? 'right' : null;
-            
-            if (now - lastTap < 300 && lastTapPosition === side && !isNavigating) {
-              if (side === 'right') navigateWithDelay('next');
-              else if (side === 'left') navigateWithDelay('prev');
-            }
-            setLastTap(now);
-            setLastTapPosition(side);
-          }}
+          onClick={handleFullscreenTap}
+          onTouchStart={handleFullscreenTap}
           style={{ background: 'transparent' }}
         />
       )}
 
-      {/* الأزرار العائمة — تختفي تماماً في وضع ملء الشاشة */}
+      {/* الأزرار العائمة */}
       {!fullscreen && (
         <>
-          {/* أزرار عائمة يمين (زر الصوت الكبير) */}
           <div className="fixed bottom-24 right-4 z-40 flex flex-col items-center gap-2">
             <div className="relative">
-              {pageIsPlaying && (
-                <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-20" />
-              )}
+              {pageIsPlaying && <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-20" />}
               <Button
                 size="icon"
                 onClick={handlePlayPage}
                 disabled={!data?.ayahs?.length}
                 className="rounded-full shadow-lg w-12 h-12 bg-primary hover:bg-primary/90"
-                title={pageIsPlaying ? 'إيقاف مؤقت' : 'تشغيل تلاوة الصفحة'}
               >
-                {pageIsPlaying
-                  ? <Pause className="h-5 w-5 text-white" />
-                  : <Play className="h-5 w-5 text-white mr-[-2px]" />}
+                {pageIsPlaying ? <Pause className="h-5 w-5 text-white" /> : <Play className="h-5 w-5 text-white mr-[-2px]" />}
               </Button>
             </div>
           </div>
 
-          {/* أزرار عائمة يسار */}
           <div className="fixed bottom-24 left-4 z-40 flex flex-col gap-2">
             {showScrollTop && (
               <Button
                 size="icon"
                 variant="outline"
                 onClick={scrollToTop}
-                className="rounded-full border-primary/20 bg-card shadow-md hover:bg-primary/10 active:scale-95 w-9 h-9 animate-in fade-in duration-200"
+                className="rounded-full border-primary/20 bg-card shadow-md hover:bg-primary/10 active:scale-95 w-9 h-9"
               >
                 <ArrowUp className="h-4 w-4 text-primary" />
               </Button>
@@ -319,4 +307,4 @@ export default function QuranReader() {
       )}
     </div>
   );
-                             }
+}

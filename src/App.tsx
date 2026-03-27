@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/context/AuthContext";
 import { useState } from "react";
 import Index from "./pages/Index.tsx";
 import QuranReader from "./pages/QuranReader.tsx";
@@ -17,6 +18,7 @@ import MemorizePage from "./pages/MemorizePage.tsx";
 import KhatmaPage from "./pages/KhatmaPage.tsx";
 import Settings from "./pages/Settings.tsx";
 import PrayerTimesPage from "./pages/PrayerTimesPage.tsx";
+import DhikrPage from "./pages/DhikrPage.tsx";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +42,7 @@ const App = () => {
             <Route path="/khatma" element={<KhatmaPage />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/prayer-times" element={<PrayerTimesPage />} />
+            <Route path="/dhikr" element={<DhikrPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

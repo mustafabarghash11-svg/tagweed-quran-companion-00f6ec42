@@ -25,8 +25,6 @@ export default function QuranReader() {
   const [lastTap, setLastTap] = useState(0);
   const [lastTapPosition, setLastTapPosition] = useState<'left' | 'right' | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
-  const [touchStartY, setTouchStartY] = useState(0);
-  const [isScrolling, setIsScrolling] = useState(false);
   const { theme, toggleTheme } = useSettings();
   const { playAyah, togglePlay, stop, nowPlaying, isPlaying } = useAudio();
 
@@ -79,11 +77,11 @@ export default function QuranReader() {
   };
 
   // ========== التنقل بالنقر المزدوج في وضع ملء الشاشة ==========
-  const handleFullscreenTap = (e: React.TouchEvent | React.MouseEvent) => {
+  const handleDoubleTap = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (!fullscreen) return;
     
-    // منع التنقل إذا كان المستخدم يمرر (سحب عمودي)
-    if (isScrolling) return;
+    // منع التنقل إذا كان المستخدم يمرر (نمنع الحدث من الانتشار)
+    e.stopPropagation();
     
     let clientX: number;
     if ('touches' in e) {
@@ -112,27 +110,6 @@ export default function QuranReader() {
     
     setLastTap(now);
     setLastTapPosition(side);
-  };
-
-  // ========== التعامل مع اللمس (للتمرير الطبيعي) ==========
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStartY(e.touches[0].clientY);
-    setIsScrolling(false);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    // إذا كان السحب عمودياً أكثر من 10 بكسل، نعتبره تمرير
-    const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
-    if (deltaY > 10) {
-      setIsScrolling(true);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    // إعادة تعيين بعد انتهاء اللمس
-    setTimeout(() => {
-      setIsScrolling(false);
-    }, 100);
   };
 
   // ========== دوال الصفحة ==========
@@ -189,9 +166,6 @@ export default function QuranReader() {
       className="flex flex-col bg-background"
       style={{ height: '100dvh', overflow: 'hidden' }}
       dir="rtl"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
     >
       {/* الشريط العلوي الموحد */}
       {!fullscreen && (
@@ -236,6 +210,21 @@ export default function QuranReader() {
         ref={scrollRef}
         className="flex-1 overflow-y-auto overscroll-contain"
         onScroll={handleScroll}
+        onDoubleClick={handleDoubleTap}
+        onTouchStart={(e) => {
+          // نحتاج لتسجيل اللمس للنقر المزدوج
+          const touch = e.touches[0];
+          const now = Date.now();
+          const side = touch.clientX < window.innerWidth / 3 ? 'left' : 
+                       touch.clientX > window.innerWidth * 2 / 3 ? 'right' : null;
+          
+          if (now - lastTap < 300 && lastTapPosition === side && !isNavigating && fullscreen) {
+            if (side === 'right') navigateWithDelay('next');
+            else if (side === 'left') navigateWithDelay('prev');
+          }
+          setLastTap(now);
+          setLastTapPosition(side);
+        }}
       >
         <QuranPageView 
           ayahs={data?.ayahs} 
@@ -254,16 +243,6 @@ export default function QuranReader() {
       )}
 
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
-      {/* طبقة شفافة للتنقل بالنقر المزدوج في وضع ملء الشاشة */}
-      {fullscreen && (
-        <div
-          className="fixed inset-0 z-30"
-          onClick={handleFullscreenTap}
-          onTouchStart={handleFullscreenTap}
-          style={{ background: 'transparent' }}
-        />
-      )}
 
       {/* الأزرار العائمة */}
       {!fullscreen && (

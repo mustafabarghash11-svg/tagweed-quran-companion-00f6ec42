@@ -1,148 +1,215 @@
-import { createContext, useContext, useState, useRef, useCallback } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  ReactNode,
+} from 'react';
 
-interface PlayingAyah {
+interface NowPlaying {
   ayahNumber: number;
   numberInSurah: number;
   surahName: string;
 }
 
 interface AudioContextType {
-  playAyah: (ayah: PlayingAyah) => void;
+  nowPlaying: NowPlaying | null;
+  isPlaying: boolean;
+  progress: number;
+  playAyah: (ayah: NowPlaying, reciterApiId?: string) => void;
   togglePlay: () => void;
   stop: () => void;
-  isPlaying: boolean;
-  nowPlaying: PlayingAyah | null;
+  playNext: () => void;
+  playPrev: () => void;
+  currentReciterApiId: string;
   setCurrentReciterApiId: (id: string) => void;
 }
 
-const AudioContext = createContext<AudioContextType | undefined>(undefined);
+const AudioCtx = createContext<AudioContextType | null>(null);
 
-export const useAudio = () => {
-  const context = useContext(AudioContext);
-  if (!context) throw new Error('useAudio must be used within AudioProvider');
-  return context;
-};
+const DEFAULT_RECITER = 'ar.alafasy';
 
-// قائمة القراء (النظام القديم)
-const reciters = [
-  { id: 'abdulbasit', name: 'عبد الباسط عبد الصمد', baseUrl: 'https://server7.mp3quran.net/basit/', apiId: 'ar.abdulbasit' },
-  { id: 'husary', name: 'محمود خليل الحصري', baseUrl: 'https://server8.mp3quran.net/husary/', apiId: 'ar.husary' },
-  { id: 'minshawi', name: 'محمد صديق المنشاوي', baseUrl: 'https://server10.mp3quran.net/minsh/', apiId: 'ar.minshawi' },
-  { id: 'alafasy', name: 'مشاري راشد العفاسي', baseUrl: 'https://server10.mp3quran.net/alafasy/', apiId: 'ar.alafasy' },
-  { id: 'sudais', name: 'عبد الرحمن السديس', baseUrl: 'https://server11.mp3quran.net/sds/', apiId: 'ar.sudais' },
-];
-
-// دالة لتحويل اسم السورة إلى رقم
-function getSurahNumber(surahName: string): number {
-  const surahMap: Record<string, number> = {
-    'الفاتحة': 1, 'البقرة': 2, 'آل عمران': 3, 'النساء': 4, 'المائدة': 5,
-    'الأنعام': 6, 'الأعراف': 7, 'الأنفال': 8, 'التوبة': 9, 'يونس': 10,
-    'هود': 11, 'يوسف': 12, 'الرعد': 13, 'إبراهيم': 14, 'الحجر': 15,
-    'النحل': 16, 'الإسراء': 17, 'الكهف': 18, 'مريم': 19, 'طه': 20,
-    'الأنبياء': 21, 'الحج': 22, 'المؤمنون': 23, 'النور': 24, 'الفرقان': 25,
-    'الشعراء': 26, 'النمل': 27, 'القصص': 28, 'العنكبوت': 29, 'الروم': 30,
-    'لقمان': 31, 'السجدة': 32, 'الأحزاب': 33, 'سبأ': 34, 'فاطر': 35,
-    'يس': 36, 'الصافات': 37, 'ص': 38, 'الزمر': 39, 'غافر': 40,
-    'فصلت': 41, 'الشورى': 42, 'الزخرف': 43, 'الدخان': 44, 'الجاثية': 45,
-    'الأحقاف': 46, 'محمد': 47, 'الفتح': 48, 'الحجرات': 49, 'ق': 50,
-    'الذاريات': 51, 'الطور': 52, 'النجم': 53, 'القمر': 54, 'الرحمن': 55,
-    'الواقعة': 56, 'الحديد': 57, 'المجادلة': 58, 'الحشر': 59, 'الممتحنة': 60,
-    'الصف': 61, 'الجمعة': 62, 'المنافقون': 63, 'التغابن': 64, 'الطلاق': 65,
-    'التحريم': 66, 'الملك': 67, 'القلم': 68, 'الحاقة': 69, 'المعارج': 70,
-    'نوح': 71, 'الجن': 72, 'المزمل': 73, 'المدثر': 74, 'القيامة': 75,
-    'الإنسان': 76, 'المرسلات': 77, 'النبأ': 78, 'النازعات': 79, 'عبس': 80,
-    'التكوير': 81, 'الانفطار': 82, 'المطففين': 83, 'الانشقاق': 84, 'البروج': 85,
-    'الطارق': 86, 'الأعلى': 87, 'الغاشية': 88, 'الفجر': 89, 'البلد': 90,
-    'الشمس': 91, 'الليل': 92, 'الضحى': 93, 'الشرح': 94, 'التين': 95,
-    'العلق': 96, 'القدر': 97, 'البينة': 98, 'الزلزلة': 99, 'العاديات': 100,
-    'القارعة': 101, 'التكاثر': 102, 'العصر': 103, 'الهمزة': 104, 'الفيل': 105,
-    'قريش': 106, 'الماعون': 107, 'الكوثر': 108, 'الكافرون': 109, 'النصر': 110,
-    'المسد': 111, 'الإخلاص': 112, 'الفلق': 113, 'الناس': 114
-  };
-  return surahMap[surahName] || 1;
+// بناء URL الصوت مع ثلاث مصادر احتياطية
+function buildAudioUrls(reciterId: string, ayahNumber: number): string[] {
+  const n = ayahNumber;
+  return [
+    // المصدر الأساسي - islamic.network بجودة 128
+    `https://cdn.islamic.network/quran/audio/128/${reciterId}/${n}.mp3`,
+    // المصدر الثاني - alquran.cloud
+    `https://cdn.alquran.cloud/media/audio/ayah/${reciterId}/128`,
+    // المصدر الثالث - mp3quran حسب القاريء
+    getMp3QuranUrl(reciterId, n),
+  ].filter(Boolean) as string[];
 }
 
-export const AudioProvider = ({ children }: { children: React.ReactNode }) => {
+// خريطة القراء على mp3quran.net كمصدر احتياطي
+function getMp3QuranUrl(reciterId: string, ayahNumber: number): string | null {
+  const map: Record<string, string> = {
+    'ar.abdulbasitmujawwad': `https://server7.mp3quran.net/basit/${String(ayahNumber).padStart(6, '0')}.mp3`,
+    'ar.abdulbasitmurattal': `https://server7.mp3quran.net/basit_mur/${String(ayahNumber).padStart(6, '0')}.mp3`,
+    'ar.alafasy': `https://server10.mp3quran.net/alafasy/${String(ayahNumber).padStart(6, '0')}.mp3`,
+    'ar.husary': `https://server8.mp3quran.net/husary/${String(ayahNumber).padStart(6, '0')}.mp3`,
+    'ar.abdurrahmaansudais': `https://server11.mp3quran.net/sds/${String(ayahNumber).padStart(6, '0')}.mp3`,
+    'ar.muhammadayyoub': `https://server10.mp3quran.net/minsh/${String(ayahNumber).padStart(6, '0')}.mp3`,
+  };
+  return map[reciterId] ?? null;
+}
+
+export function AudioProvider({ children }: { children: ReactNode }) {
+  const audioRef = useRef<HTMLAudioElement>(new Audio());
+  const [nowPlaying, setNowPlaying] = useState<NowPlaying | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [nowPlaying, setNowPlaying] = useState<PlayingAyah | null>(null);
-  const [currentReciter, setCurrentReciter] = useState(reciters[0]);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [currentReciterApiId, setCurrentReciterApiIdState] = useState<string>(() => {
+    const saved = localStorage.getItem('tagweed-reciter-api');
+    return saved || DEFAULT_RECITER;
+  });
 
-  const getAudioUrl = useCallback((ayah: PlayingAyah): string => {
-    const surahNumber = getSurahNumber(ayah.surahName);
-    const ayahNumber = ayah.numberInSurah;
-    const formattedSurah = surahNumber.toString().padStart(3, '0');
-    const formattedAyah = ayahNumber.toString().padStart(3, '0');
-    return `${currentReciter.baseUrl}${formattedSurah}${formattedAyah}.mp3`;
-  }, [currentReciter]);
+  const reciterRef = useRef(currentReciterApiId);
+  const nowPlayingRef = useRef<NowPlaying | null>(null);
 
-  const playAyah = useCallback((ayah: PlayingAyah) => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
+  const setCurrentReciterApiId = (id: string) => {
+    reciterRef.current = id;
+    setCurrentReciterApiIdState(id);
+    localStorage.setItem('tagweed-reciter-api', id);
+  };
 
-    const url = getAudioUrl(ayah);
-    const audio = new Audio(url);
-    
-    audio.addEventListener('ended', () => {
-      setIsPlaying(false);
-      setNowPlaying(null);
-    });
-    
-    audio.addEventListener('error', (e) => {
-      console.error('Audio error:', e);
-      setIsPlaying(false);
-      setNowPlaying(null);
-    });
-    
-    audio.play().catch((err) => {
-      console.error('Play failed:', err);
-    });
-    
-    audioRef.current = audio;
-    setNowPlaying(ayah);
-    setIsPlaying(true);
-  }, [getAudioUrl]);
+  // تشغيل URL مع محاولة fallbacks
+  const tryPlayUrls = (urls: string[], onSuccess: () => void, onFail: () => void) => {
+    const audio = audioRef.current;
+    let idx = 0;
 
-  const togglePlay = useCallback(() => {
-    if (!audioRef.current) return;
-    
+    const tryNext = () => {
+      if (idx >= urls.length) {
+        onFail();
+        return;
+      }
+      audio.src = urls[idx++];
+      audio.load();
+      audio.play()
+        .then(onSuccess)
+        .catch(tryNext);
+    };
+
+    tryNext();
+  };
+
+  const loadAndPlay = (ayah: NowPlaying, reciterId: string) => {
+    const urls = buildAudioUrls(reciterId, ayah.ayahNumber);
+
+    tryPlayUrls(
+      urls,
+      () => {
+        setNowPlaying(ayah);
+        nowPlayingRef.current = ayah;
+        setIsPlaying(true);
+        setProgress(0);
+      },
+      () => {
+        console.warn(`فشل تشغيل الآية ${ayah.ayahNumber} للقاريء ${reciterId}`);
+        setIsPlaying(false);
+      }
+    );
+  };
+
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    const onTimeUpdate = () => {
+      if (audio.duration) {
+        setProgress((audio.currentTime / audio.duration) * 100);
+      }
+    };
+
+    const onEnded = () => {
+      const prev = nowPlayingRef.current;
+      if (!prev || prev.ayahNumber >= 6236) {
+        setIsPlaying(false);
+        return;
+      }
+      // الآية التالية - numberInSurah سيُصحَّح عند استدعاء القرآن
+      // نحافظ على surahName ونزيد ayahNumber فقط
+      const next: NowPlaying = {
+        ayahNumber: prev.ayahNumber + 1,
+        numberInSurah: prev.numberInSurah + 1,
+        surahName: prev.surahName,
+      };
+      loadAndPlay(next, reciterRef.current);
+      setNowPlaying(next);
+      nowPlayingRef.current = next;
+    };
+
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('ended', onEnded);
+    return () => {
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('ended', onEnded);
+    };
+  }, []);
+
+  const playAyah = (ayah: NowPlaying, reciterApiId?: string) => {
+    const rid = reciterApiId ?? reciterRef.current;
+    loadAndPlay(ayah, rid);
+  };
+
+  const togglePlay = () => {
+    const audio = audioRef.current;
     if (isPlaying) {
-      audioRef.current.pause();
+      audio.pause();
       setIsPlaying(false);
     } else {
-      audioRef.current.play().catch(console.error);
-      setIsPlaying(true);
+      audio.play().then(() => setIsPlaying(true)).catch(() => {});
     }
-  }, [isPlaying]);
+  };
 
-  const stop = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
+  const stop = () => {
+    const audio = audioRef.current;
+    audio.pause();
+    audio.currentTime = 0;
     setIsPlaying(false);
     setNowPlaying(null);
-  }, []);
+    nowPlayingRef.current = null;
+    setProgress(0);
+  };
 
-  const setCurrentReciterApiId = useCallback((apiId: string) => {
-    const found = reciters.find(r => r.apiId === apiId);
-    if (found) {
-      setCurrentReciter(found);
+  const playNext = () => {
+    const current = nowPlayingRef.current;
+    if (current && current.ayahNumber < 6236) {
+      const next: NowPlaying = {
+        ayahNumber: current.ayahNumber + 1,
+        numberInSurah: current.numberInSurah + 1,
+        surahName: current.surahName,
+      };
+      loadAndPlay(next, reciterRef.current);
     }
-  }, []);
+  };
+
+  const playPrev = () => {
+    const current = nowPlayingRef.current;
+    if (current && current.ayahNumber > 1) {
+      const prev: NowPlaying = {
+        ayahNumber: current.ayahNumber - 1,
+        numberInSurah: Math.max(1, current.numberInSurah - 1),
+        surahName: current.surahName,
+      };
+      loadAndPlay(prev, reciterRef.current);
+    }
+  };
 
   return (
-    <AudioContext.Provider value={{
-      playAyah,
-      togglePlay,
-      stop,
-      isPlaying,
-      nowPlaying,
-      setCurrentReciterApiId
+    <AudioCtx.Provider value={{
+      nowPlaying, isPlaying, progress,
+      playAyah, togglePlay, stop, playNext, playPrev,
+      currentReciterApiId, setCurrentReciterApiId,
     }}>
       {children}
-    </AudioContext.Provider>
+    </AudioCtx.Provider>
   );
-};
+}
+
+export function useAudio() {
+  const ctx = useContext(AudioCtx);
+  if (!ctx) throw new Error('useAudio must be used inside AudioProvider');
+  return ctx;
+}

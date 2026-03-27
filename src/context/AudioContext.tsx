@@ -1,6 +1,4 @@
-import { createContext, useContext, useState, useRef, useCallback } from 'react';
-import { reciters } from '@/data/reciters';
-import { useSettings } from './SettingsContext';
+import { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
 
 interface PlayingAyah {
   ayahNumber: number;
@@ -24,6 +22,16 @@ export const useAudio = () => {
   if (!context) throw new Error('useAudio must be used within AudioProvider');
   return context;
 };
+
+// قائمة القراء
+const reciters = [
+  { id: 'abdulbasit', name: 'عبد الباسط عبد الصمد', baseUrl: 'https://server7.mp3quran.net/basit/', apiId: 'ar.abdulbasit' },
+  { id: 'husary', name: 'محمود خليل الحصري', baseUrl: 'https://server8.mp3quran.net/husary/', apiId: 'ar.husary' },
+  { id: 'minshawi', name: 'محمد صديق المنشاوي', baseUrl: 'https://server10.mp3quran.net/minsh/', apiId: 'ar.minshawi' },
+  { id: 'alafasy', name: 'مشاري راشد العفاسي', baseUrl: 'https://server10.mp3quran.net/alafasy/', apiId: 'ar.alafasy' },
+  { id: 'sudais', name: 'عبد الرحمن السديس', baseUrl: 'https://server11.mp3quran.net/sds/', apiId: 'ar.sudais' },
+  { id: 'ghamdi', name: 'سعد الغامدي', baseUrl: 'https://server12.mp3quran.net/ghamdi/', apiId: 'ar.ghamdi' },
+];
 
 // دالة لتحويل اسم السورة إلى رقم
 function getSurahNumber(surahName: string): number {
@@ -58,30 +66,36 @@ function getSurahNumber(surahName: string): number {
 export const AudioProvider = ({ children }: { children: React.ReactNode }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [nowPlaying, setNowPlaying] = useState<PlayingAyah | null>(null);
-  const { reciter } = useSettings();
+  const [currentReciter, setCurrentReciter] = useState(reciters[0]); // افتراضي: عبد الباسط
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // دالة لجلب رابط التلاوة من mp3quran.net
+  // تحميل القارئ المحفوظ من localStorage
+  useEffect(() => {
+    const savedReciter = localStorage.getItem('tagweed-recite');
+    if (savedReciter) {
+      try {
+        const reciterId = JSON.parse(savedReciter);
+        const found = reciters.find(r => r.id === reciterId);
+        if (found) setCurrentReciter(found);
+      } catch { }
+    }
+  }, []);
+
   const getAudioUrl = useCallback((ayah: PlayingAyah): string => {
     const surahNumber = getSurahNumber(ayah.surahName);
     const ayahNumber = ayah.numberInSurah;
-    // تنسيق رقم الآية (001, 002, إلخ)
+    const formattedSurah = surahNumber.toString().padStart(3, '0');
     const formattedAyah = ayahNumber.toString().padStart(3, '0');
-    
-    // رابط مباشر من mp3quran.net
-    return `${reciter.baseUrl}${surahNumber.toString().padStart(3, '0')}${formattedAyah}.mp3`;
-  }, [reciter]);
+    return `${currentReciter.baseUrl}${formattedSurah}${formattedAyah}.mp3`;
+  }, [currentReciter]);
 
   const playAyah = useCallback((ayah: PlayingAyah) => {
-    // إيقاف التشغيل الحالي
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
 
     const url = getAudioUrl(ayah);
-    console.log('Playing audio:', url); // للتأكد من الرابط
-    
     const audio = new Audio(url);
     
     audio.addEventListener('ended', () => {
@@ -126,7 +140,11 @@ export const AudioProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const setCurrentReciterApiId = useCallback((apiId: string) => {
-    // لا حاجة لهذه الدالة في الإصدار الجديد
+    const found = reciters.find(r => r.apiId === apiId);
+    if (found) {
+      setCurrentReciter(found);
+      localStorage.setItem('tagweed-recite', JSON.stringify(found.id));
+    }
   }, []);
 
   return (

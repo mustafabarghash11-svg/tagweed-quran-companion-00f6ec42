@@ -6,6 +6,7 @@ import { toArabicNumeral, SURAH_START_PAGES } from '@/lib/quran-api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSettings } from '@/context/SettingsContext.tsx';
 import { Sidebar } from '@/components/Sidebar';
+import { DailyDhikr } from '@/components/DailyDhikr';
 
 // آخر صفحة مقروءة
 function getLastPage(): number | null {
@@ -88,6 +89,9 @@ export default function Index() {
         </div>
       )}
 
+      {/* قسم الأذكار الصباحية والمسائية */}
+      <DailyDhikr />
+
       {/* فهرس السور */}
       <section className="mx-auto max-w-2xl px-4">
         <h2 className="mb-3 font-ui text-base font-bold text-foreground flex items-center gap-2">
@@ -131,4 +135,4 @@ export default function Index() {
       </section>
     </div>
   );
-        }
+                }

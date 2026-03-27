@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { X, Home, Search, HelpCircle, Sparkles, Clock, Settings, BookOpen, Brain, BookMarked } from 'lucide-react';
+import { X, Home, Search, HelpCircle, Sparkles, Clock, Settings, BookOpen, Brain, BookMarked, Sun } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -12,6 +12,7 @@ const navItems = [
   { path: '/quiz', icon: HelpCircle, label: 'أسئلة' },
   { path: '/ai', icon: Sparkles, label: 'AI' },
   { path: '/prayer-times', icon: Clock, label: 'الصلاة' },
+  { path: '/dhikr', icon: Sun, label: 'الأذكار' },  // <-- زر الأذكار
   { path: '/memorize', icon: Brain, label: 'الحفظ' },
   { path: '/bookmarks', icon: BookMarked, label: 'العلامات المرجعية' },
   { path: '/settings', icon: Settings, label: 'الإعدادات' },
@@ -57,4 +58,4 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       </div>
     </>
   );
-      }
+  }

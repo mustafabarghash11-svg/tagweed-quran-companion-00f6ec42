@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Sun, Moon, Menu, ChevronLeft, FileText } from 'lucide-react';
+import { Search, Sun, Moon, Menu, ChevronLeft, FileText, Sparkles } from 'lucide-react';
 import { useSurahs } from '@/hooks/use-quran';
 import { toArabicNumeral, SURAH_START_PAGES } from '@/lib/quran-api';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,13 +24,22 @@ export default function Index() {
     <div className="min-h-screen pb-20" dir="rtl">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-5 pb-2">
-        {/* الأزرار اليمنى (بحث فقط) */}
+        {/* الأزرار اليمنى (بحث + أذكار) */}
         <div className="flex items-center gap-1.5">
+          {/* زر البحث */}
           <Link
             to="/search"
             className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
           >
             <Search className="h-4.5 w-4.5" />
+          </Link>
+
+          {/* زر الأذكار */}
+          <Link
+            to="/dhikr"
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+          >
+            <Sparkles className="h-4.5 w-4.5" />
           </Link>
         </div>
 
@@ -135,4 +144,4 @@ export default function Index() {
       </section>
     </div>
   );
-                }
+          }

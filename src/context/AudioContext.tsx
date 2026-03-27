@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useRef, useCallback } from 'react';
 
 interface PlayingAyah {
   ayahNumber: number;
@@ -23,14 +23,13 @@ export const useAudio = () => {
   return context;
 };
 
-// قائمة القراء
+// قائمة القراء (النظام القديم)
 const reciters = [
   { id: 'abdulbasit', name: 'عبد الباسط عبد الصمد', baseUrl: 'https://server7.mp3quran.net/basit/', apiId: 'ar.abdulbasit' },
   { id: 'husary', name: 'محمود خليل الحصري', baseUrl: 'https://server8.mp3quran.net/husary/', apiId: 'ar.husary' },
   { id: 'minshawi', name: 'محمد صديق المنشاوي', baseUrl: 'https://server10.mp3quran.net/minsh/', apiId: 'ar.minshawi' },
   { id: 'alafasy', name: 'مشاري راشد العفاسي', baseUrl: 'https://server10.mp3quran.net/alafasy/', apiId: 'ar.alafasy' },
   { id: 'sudais', name: 'عبد الرحمن السديس', baseUrl: 'https://server11.mp3quran.net/sds/', apiId: 'ar.sudais' },
-  { id: 'ghamdi', name: 'سعد الغامدي', baseUrl: 'https://server12.mp3quran.net/ghamdi/', apiId: 'ar.ghamdi' },
 ];
 
 // دالة لتحويل اسم السورة إلى رقم
@@ -66,20 +65,8 @@ function getSurahNumber(surahName: string): number {
 export const AudioProvider = ({ children }: { children: React.ReactNode }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [nowPlaying, setNowPlaying] = useState<PlayingAyah | null>(null);
-  const [currentReciter, setCurrentReciter] = useState(reciters[0]); // افتراضي: عبد الباسط
+  const [currentReciter, setCurrentReciter] = useState(reciters[0]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  // تحميل القارئ المحفوظ من localStorage
-  useEffect(() => {
-    const savedReciter = localStorage.getItem('tagweed-recite');
-    if (savedReciter) {
-      try {
-        const reciterId = JSON.parse(savedReciter);
-        const found = reciters.find(r => r.id === reciterId);
-        if (found) setCurrentReciter(found);
-      } catch { }
-    }
-  }, []);
 
   const getAudioUrl = useCallback((ayah: PlayingAyah): string => {
     const surahNumber = getSurahNumber(ayah.surahName);
@@ -143,7 +130,6 @@ export const AudioProvider = ({ children }: { children: React.ReactNode }) => {
     const found = reciters.find(r => r.apiId === apiId);
     if (found) {
       setCurrentReciter(found);
-      localStorage.setItem('tagweed-recite', JSON.stringify(found.id));
     }
   }, []);
 

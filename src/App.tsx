@@ -10,7 +10,7 @@ import QuranReader from "./pages/QuranReader.tsx";
 import SurahBrowser from "./pages/SurahBrowser.tsx";
 import JuzBrowser from "./pages/JuzBrowser.tsx";
 import TagweedAI from "./pages/TagweedAI.tsx";
-import Quiz from "./pages/Quiz.tsx";
+// import Quiz from "./pages/Quiz.tsx";  // <-- احذف هذا السطر
 import NotFound from "./pages/NotFound.tsx";
 import SearchPage from "./pages/SearchPage.tsx";
 import BookmarksPage from "./pages/BookmarksPage.tsx";
@@ -35,7 +35,7 @@ const App = () => {
             <Route path="/surah" element={<SurahBrowser />} />
             <Route path="/juz" element={<JuzBrowser />} />
             <Route path="/ai" element={<TagweedAI />} />
-            <Route path="/quiz" element={<Quiz />} />
+            {/* <Route path="/quiz" element={<Quiz />} />  // <-- احذف هذا السطر */}
             <Route path="/search" element={<SearchPage />} />
             <Route path="/bookmarks" element={<BookmarksPage />} />
             <Route path="/memorize" element={<MemorizePage />} />

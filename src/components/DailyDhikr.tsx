@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Sun, Moon, MapPin, RefreshCw, ChevronLeft } from 'lucide-react';
+import { Sun, Moon, MapPin, ChevronLeft } from 'lucide-react';
 import { toArabicNumeral } from '@/lib/quran-api';
 
 // قاعدة بيانات الأذكار الصباحية (مختصرة للعرض في الصفحة الرئيسية)
@@ -46,21 +46,42 @@ const EVENING_DHIKR_PREVIEW = [
   }
 ];
 
-// دالة لتحديد الوقت
+// دالة لتحديد الوقت (صباح/مساء) بدقة
 function getTimeOfDay(): 'morning' | 'evening' {
   const now = new Date();
   const hours = now.getHours();
-  if (hours >= 4 && hours < 12) return 'morning';
-  if (hours >= 12 && hours < 20) return 'evening';
-  return 'morning';
+  
+  // صباح: من 4 صباحاً حتى 12 ظهراً
+  if (hours >= 4 && hours < 12) {
+    return 'morning';
+  }
+  // مساء: من 12 ظهراً حتى 8 مساءً
+  if (hours >= 12 && hours < 20) {
+    return 'evening';
+  }
+  // بعد 8 مساءً حتى 4 صباحاً: عرض أذكار المساء (لأنها تُقرأ حتى المغرب)
+  return 'evening';
 }
 
 export function DailyDhikr() {
-  const [timeOfDay, setTimeOfDay] = useState<'morning' | 'evening'>('morning');
+  const [timeOfDay, setTimeOfDay] = useState<'morning' | 'evening'>(getTimeOfDay());
   const [city, setCity] = useState<string>('');
   const [completedCount, setCompletedCount] = useState(0);
   const totalCount = 8; // إجمالي الأذكار
 
+  // تحديث الوقت كل دقيقة
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const newTime = getTimeOfDay();
+      if (newTime !== timeOfDay) {
+        setTimeOfDay(newTime);
+      }
+    }, 60000); // كل 60 ثانية
+    
+    return () => clearInterval(interval);
+  }, [timeOfDay]);
+
+  // تحميل المدينة والأذكار المكتملة
   useEffect(() => {
     const savedCity = localStorage.getItem('prayer-city');
     if (savedCity) {
@@ -74,10 +95,18 @@ export function DailyDhikr() {
     if (savedCompleted) {
       setCompletedCount(JSON.parse(savedCompleted).length);
     }
-    
-    const time = getTimeOfDay();
-    setTimeOfDay(time);
   }, []);
+
+  // تحديث عند تغيير الوقت
+  useEffect(() => {
+    // إعادة تحميل عدد الأذكار المكتملة عند تغيير الوقت
+    const savedCompleted = localStorage.getItem('dhikr-completed');
+    if (savedCompleted) {
+      setCompletedCount(JSON.parse(savedCompleted).length);
+    } else {
+      setCompletedCount(0);
+    }
+  }, [timeOfDay]);
 
   const title = timeOfDay === 'morning' ? 'أذكار الصباح' : 'أذكار المساء';
   const icon = timeOfDay === 'morning' ? <Sun className="h-5 w-5 text-amber-500" /> : <Moon className="h-5 w-5 text-indigo-500" />;

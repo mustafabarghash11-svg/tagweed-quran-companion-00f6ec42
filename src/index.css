@@ -4,98 +4,68 @@
 
 @layer base {
   :root {
-    --background: 40 33% 96%;
-    --foreground: 30 10% 15%;
-
-    --card: 40 30% 93%;
-    --card-foreground: 30 10% 15%;
-
-    --popover: 40 33% 96%;
-    --popover-foreground: 30 10% 15%;
-
-    --primary: 38 65% 50%;
-    --primary-foreground: 40 33% 96%;
-
-    --secondary: 35 25% 88%;
-    --secondary-foreground: 30 10% 25%;
-
-    --muted: 35 20% 90%;
-    --muted-foreground: 30 8% 46%;
-
-    --accent: 38 50% 42%;
-    --accent-foreground: 40 33% 96%;
-
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 35 25% 82%;
-    --input: 35 25% 82%;
-    --ring: 38 65% 50%;
-
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 75 18% 38%;  /* اللون الجديد #6B744E */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 75 18% 38%;  /* نفس اللون */
     --radius: 0.5rem;
-
-    --sidebar-background: 40 30% 93%;
-    --sidebar-foreground: 30 10% 25%;
-    --sidebar-primary: 38 65% 50%;
-    --sidebar-primary-foreground: 40 33% 96%;
-    --sidebar-accent: 35 25% 88%;
-    --sidebar-accent-foreground: 30 10% 25%;
-    --sidebar-border: 35 25% 82%;
-    --sidebar-ring: 38 65% 50%;
   }
 
   .dark {
-    --background: 220 25% 10%;
-    --foreground: 40 20% 90%;
-
-    --card: 220 22% 14%;
-    --card-foreground: 40 20% 90%;
-
-    --popover: 220 22% 14%;
-    --popover-foreground: 40 20% 90%;
-
-    --primary: 38 65% 50%;
-    --primary-foreground: 220 25% 10%;
-
-    --secondary: 220 18% 20%;
-    --secondary-foreground: 40 20% 85%;
-
-    --muted: 220 18% 18%;
-    --muted-foreground: 220 10% 55%;
-
-    --accent: 38 50% 45%;
-    --accent-foreground: 220 25% 10%;
-
-    --border: 220 18% 22%;
-    --input: 220 18% 22%;
-    --ring: 38 65% 50%;
-
-    --sidebar-background: 220 22% 12%;
-    --sidebar-foreground: 40 20% 85%;
-    --sidebar-primary: 38 65% 50%;
-    --sidebar-primary-foreground: 220 25% 10%;
-    --sidebar-accent: 220 18% 18%;
-    --sidebar-accent-foreground: 40 20% 85%;
-    --sidebar-border: 220 18% 22%;
-    --sidebar-ring: 38 65% 50%;
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 75 18% 38%;  /* نفس اللون في الوضع الداكن */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 75 18% 38%;
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground antialiased;
-    font-family: 'Tajawal', sans-serif;
-  }
+/* تخصيص الأزرار والأيقونات */
+.bg-primary {
+  background-color: #6B744E !important;
 }
 
-.font-quran {
-  font-family: 'Amiri Quran', serif;
+.text-primary {
+  color: #6B744E !important;
 }
 
-.font-ui {
-  font-family: 'Tajawal', sans-serif;
+.border-primary {
+  border-color: #6B744E !important;
 }
+
+.hover\:bg-primary:hover {
+  background-color: #5a6242 !important;
+}
+
+.hover\:text-primary:hover {
+  color: #6B744E !important;
+    }

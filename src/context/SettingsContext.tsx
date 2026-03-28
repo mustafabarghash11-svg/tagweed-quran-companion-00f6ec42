@@ -4,16 +4,16 @@ import { reciters, type Reciter } from "@/data/reciters";
 export type ColorTheme = {
   id: string;
   name: string;
-  primary: string; // hsl values e.g. "142 71% 45%"
+  primary: string; // hsl values
 };
 
 export const COLOR_THEMES: ColorTheme[] = [
-  { id: 'default', name: 'أخضر', primary: '142 71% 45%' },
-  { id: 'blue', name: 'أزرق', primary: '217 91% 60%' },
-  { id: 'amber', name: 'ذهبي', primary: '38 92% 50%' },
-  { id: 'teal', name: 'فيروزي', primary: '174 72% 40%' },
-  { id: 'purple', name: 'بنفسجي', primary: '270 67% 60%' },
-  { id: 'rose', name: 'وردي', primary: '347 77% 58%' },
+  { id: 'default', name: 'زيتوني', primary: '76 20% 37%' }, // ✅ #6B744E بدل الأخضر
+  { id: 'blue',    name: 'أزرق',   primary: '217 91% 60%' },
+  { id: 'amber',   name: 'ذهبي',   primary: '38 92% 50%'  },
+  { id: 'teal',    name: 'فيروزي', primary: '174 72% 40%' },
+  { id: 'purple',  name: 'بنفسجي', primary: '270 67% 60%' },
+  { id: 'rose',    name: 'وردي',   primary: '347 77% 58%' },
 ];
 
 interface SettingsContextType {
@@ -51,7 +51,15 @@ function getInitialColorTheme(): ColorTheme {
       if (found) return found;
     }
   } catch {}
-  return COLOR_THEMES[0];
+  return COLOR_THEMES[0]; // زيتوني افتراضي
+}
+
+function applyColorTheme(c: ColorTheme) {
+  document.documentElement.style.setProperty('--primary', c.primary);
+  document.documentElement.style.setProperty('--ring', c.primary);
+  document.documentElement.style.setProperty('--accent', c.primary);
+  document.documentElement.style.setProperty('--sidebar-primary', c.primary);
+  document.documentElement.style.setProperty('--sidebar-ring', c.primary);
 }
 
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
@@ -85,22 +93,22 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const setColorTheme = (c: ColorTheme) => {
     setColorThemeState(c);
     localStorage.setItem("colorTheme", JSON.stringify(c));
-    document.documentElement.style.setProperty('--primary', c.primary);
-    document.documentElement.style.setProperty('--ring', c.primary);
-    document.documentElement.style.setProperty('--accent', c.primary);
-    document.documentElement.style.setProperty('--sidebar-primary', c.primary);
+    applyColorTheme(c);
   };
 
+  // تطبيق اللون والثيم عند أول تحميل
   useEffect(() => {
     document.documentElement.className = theme;
-    document.documentElement.style.setProperty('--primary', colorTheme.primary);
-    document.documentElement.style.setProperty('--ring', colorTheme.primary);
-    document.documentElement.style.setProperty('--accent', colorTheme.primary);
-    document.documentElement.style.setProperty('--sidebar-primary', colorTheme.primary);
+    applyColorTheme(colorTheme);
   }, []);
 
   return (
-    <C.Provider value={{ reciter, setReciter, theme, setTheme, toggleTheme, fontSize, setFontSize, colorTheme, setColorTheme }}>
+    <C.Provider value={{
+      reciter, setReciter,
+      theme, setTheme, toggleTheme,
+      fontSize, setFontSize,
+      colorTheme, setColorTheme,
+    }}>
       {children}
     </C.Provider>
   );

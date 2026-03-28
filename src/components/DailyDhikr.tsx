@@ -16,12 +16,6 @@ const MORNING_DHIKR_PREVIEW = [
     text: "اللَّهُمَّ بِكَ أَصْبَحْنَا، وَبِكَ أَمْسَيْنَا، وَبِكَ نَحْيَا، وَبِكَ نَمُوتُ، وَإِلَيْكَ النُّشُورُ.",
     count: 1,
     source: "سنن الترمذي"
-  },
-  {
-    id: 3,
-    text: "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ.",
-    count: 100,
-    source: "صحيح مسلم"
   }
 ];
 
@@ -37,29 +31,21 @@ const EVENING_DHIKR_PREVIEW = [
     text: "اللَّهُمَّ بِكَ أَمْسَيْنَا، وَبِكَ أَصْبَحْنَا، وَبِكَ نَحْيَا، وَبِكَ نَمُوتُ، وَإِلَيْكَ الْمَصِيرُ.",
     count: 1,
     source: "سنن الترمذي"
-  },
-  {
-    id: 3,
-    text: "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ.",
-    count: 100,
-    source: "صحيح مسلم"
   }
 ];
 
-// دالة لتحديد الوقت (صباح/مساء) بدقة
+// دالة لتحديد الوقت (صباح/مساء)
+// الصباح: من الفجر حتى المغرب (4 ص - 6 م)
+// المساء: من المغرب حتى الفجر (6 م - 4 ص)
 function getTimeOfDay(): 'morning' | 'evening' {
   const now = new Date();
   const hours = now.getHours();
   
-  // صباح: من 4 صباحاً حتى 12 ظهراً
-  if (hours >= 4 && hours < 12) {
+  // صباح: من 4 صباحاً حتى 6 مساءً
+  if (hours >= 4 && hours < 18) {
     return 'morning';
   }
-  // مساء: من 12 ظهراً حتى 8 مساءً
-  if (hours >= 12 && hours < 20) {
-    return 'evening';
-  }
-  // بعد 8 مساءً حتى 4 صباحاً: عرض أذكار المساء (لأنها تُقرأ حتى المغرب)
+  // مساء: من 6 مساءً حتى 4 صباحاً
   return 'evening';
 }
 
@@ -76,7 +62,7 @@ export function DailyDhikr() {
       if (newTime !== timeOfDay) {
         setTimeOfDay(newTime);
       }
-    }, 60000); // كل 60 ثانية
+    }, 60000);
     
     return () => clearInterval(interval);
   }, [timeOfDay]);
@@ -99,7 +85,6 @@ export function DailyDhikr() {
 
   // تحديث عند تغيير الوقت
   useEffect(() => {
-    // إعادة تحميل عدد الأذكار المكتملة عند تغيير الوقت
     const savedCompleted = localStorage.getItem('dhikr-completed');
     if (savedCompleted) {
       setCompletedCount(JSON.parse(savedCompleted).length);
@@ -109,36 +94,40 @@ export function DailyDhikr() {
   }, [timeOfDay]);
 
   const title = timeOfDay === 'morning' ? 'أذكار الصباح' : 'أذكار المساء';
-  const icon = timeOfDay === 'morning' ? <Sun className="h-5 w-5 text-amber-500" /> : <Moon className="h-5 w-5 text-indigo-500" />;
+  const timeRange = timeOfDay === 'morning' ? 'من الفجر حتى المغرب' : 'من المغرب حتى الفجر';
+  const icon = timeOfDay === 'morning' ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-indigo-500" />;
   const dhikrList = timeOfDay === 'morning' ? MORNING_DHIKR_PREVIEW : EVENING_DHIKR_PREVIEW;
 
   return (
-    <Link to="/dhikr" className="block mx-auto max-w-lg px-4 mb-5">
-      <div className="rounded-2xl border border-primary/20 bg-card p-4 shadow-sm hover:shadow-md hover:bg-primary/5 transition-all cursor-pointer active:scale-[0.98]">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-3 pb-2 border-b border-primary/10">
-          <div className="flex items-center gap-2">
+    <Link to="/dhikr" className="block mx-auto max-w-lg px-4 mb-4">
+      <div className="rounded-xl border border-primary/20 bg-card p-3 shadow-sm hover:shadow-md hover:bg-primary/5 transition-all cursor-pointer active:scale-[0.98]">
+        {/* Header - مصغر */}
+        <div className="flex items-center justify-between mb-2 pb-1 border-b border-primary/10">
+          <div className="flex items-center gap-1.5">
             {icon}
-            <h3 className="font-ui text-base font-bold text-foreground">{title}</h3>
+            <h3 className="font-ui text-sm font-bold text-foreground">{title}</h3>
+            <span className="font-ui text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded-full">
+              {timeRange}
+            </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {city && (
-              <div className="flex items-center gap-1">
-                <MapPin className="h-3 w-3 text-muted-foreground" />
-                <span className="font-ui text-[10px] text-muted-foreground">{city}</span>
+              <div className="flex items-center gap-0.5">
+                <MapPin className="h-2.5 w-2.5 text-muted-foreground" />
+                <span className="font-ui text-[9px] text-muted-foreground">{city}</span>
               </div>
             )}
-            <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+            <ChevronLeft className="h-3 w-3 text-muted-foreground" />
           </div>
         </div>
 
-        {/* Progress */}
-        <div className="mb-3">
-          <div className="flex justify-between font-ui text-xs text-muted-foreground mb-1">
+        {/* Progress - مصغر */}
+        <div className="mb-2">
+          <div className="flex justify-between font-ui text-[10px] text-muted-foreground mb-0.5">
             <span>تقدم الأذكار</span>
             <span>{toArabicNumeral(completedCount)} / {toArabicNumeral(totalCount)}</span>
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-primary transition-all duration-500"
               style={{ width: `${(completedCount / totalCount) * 100}%` }}
@@ -146,22 +135,22 @@ export function DailyDhikr() {
           </div>
         </div>
 
-        {/* Dhikr Preview */}
-        <div className="space-y-2">
+        {/* Dhikr Preview - مصغر */}
+        <div className="space-y-1.5">
           {dhikrList.map((dhikr) => (
             <div
               key={dhikr.id}
-              className="rounded-lg bg-muted/30 p-2"
+              className="rounded-lg bg-muted/30 p-1.5"
             >
-              <p className="font-ui text-sm leading-relaxed text-foreground line-clamp-2">
+              <p className="font-ui text-xs leading-relaxed text-foreground line-clamp-1">
                 {dhikr.text}
               </p>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 font-ui text-[10px] text-primary">
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="rounded-full bg-primary/10 px-1.5 py-0.5 font-ui text-[9px] text-primary">
                   {dhikr.source}
                 </span>
                 {dhikr.count > 1 && (
-                  <span className="font-ui text-[10px] text-muted-foreground">
+                  <span className="font-ui text-[9px] text-muted-foreground">
                     {toArabicNumeral(dhikr.count)} مرة
                   </span>
                 )}
@@ -170,13 +159,13 @@ export function DailyDhikr() {
           ))}
         </div>
 
-        {/* Footer */}
-        <div className="mt-3 pt-2 border-t border-primary/10 text-center">
-          <p className="font-ui text-[10px] text-primary">
+        {/* Footer - مصغر */}
+        <div className="mt-2 pt-1 border-t border-primary/10 text-center">
+          <p className="font-ui text-[9px] text-primary">
             اضغط لعرض جميع الأذكار ←
           </p>
         </div>
       </div>
     </Link>
   );
-    }
+                }

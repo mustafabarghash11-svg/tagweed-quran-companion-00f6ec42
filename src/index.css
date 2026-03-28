@@ -10,7 +10,8 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 75 18% 38%;  /* #6B744E - اللون الزيتي */
+    /* اللون الزيتي #6B744E = hsl(75, 18%, 38%) */
+    --primary: 75 18% 38%;
     --primary-foreground: 0 0% 100%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -33,7 +34,7 @@
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 75 18% 38%;  /* نفس اللون في الدارك مود */
+    --primary: 75 18% 38%;
     --primary-foreground: 0 0% 100%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -48,5 +49,3 @@
     --ring: 75 18% 38%;
   }
 }
-
-/* لا تضف !important لأنها تتعارض مع Tailwind */

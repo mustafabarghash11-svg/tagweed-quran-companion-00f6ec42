@@ -10,7 +10,7 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 75 18% 38%;  /* اللون الجديد #6B744E */
+    --primary: 75 18% 38%;  /* #6B744E - اللون الزيتي */
     --primary-foreground: 0 0% 100%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -22,7 +22,7 @@
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 75 18% 38%;  /* نفس اللون */
+    --ring: 75 18% 38%;
     --radius: 0.5rem;
   }
 
@@ -33,7 +33,7 @@
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 75 18% 38%;  /* نفس اللون في الوضع الداكن */
+    --primary: 75 18% 38%;  /* نفس اللون في الدارك مود */
     --primary-foreground: 0 0% 100%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -49,23 +49,4 @@
   }
 }
 
-/* تخصيص الأزرار والأيقونات */
-.bg-primary {
-  background-color: #6B744E !important;
-}
-
-.text-primary {
-  color: #6B744E !important;
-}
-
-.border-primary {
-  border-color: #6B744E !important;
-}
-
-.hover\:bg-primary:hover {
-  background-color: #5a6242 !important;
-}
-
-.hover\:text-primary:hover {
-  color: #6B744E !important;
-    }
+/* لا تضف !important لأنها تتعارض مع Tailwind */

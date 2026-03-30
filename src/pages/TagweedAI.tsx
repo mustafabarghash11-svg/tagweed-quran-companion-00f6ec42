@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Send, Home, Bot, User, Loader2, Sparkles, Trash2, Edit2, Plus, MessageSquare, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Send, Home, Bot, User, Loader2, Sparkles, Trash2, Edit2, Plus, MessageSquare, ChevronLeft, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useChat } from "@/context/ChatContext";
 
@@ -22,6 +22,8 @@ export default function TagweedAI() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
+  const [streamingContent, setStreamingContent] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const currentChat = getCurrentChat();
@@ -29,7 +31,7 @@ export default function TagweedAI() {
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, streamingContent, isStreaming]);
 
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
@@ -39,20 +41,21 @@ export default function TagweedAI() {
     addMessage(currentChatId, userMsg);
     setInput("");
     setIsLoading(true);
-
-    let assistantSoFar = "";
-
-    // إضافة رسالة مؤقتة للمساعد
-    addMessage(currentChatId, { role: "assistant", content: "" });
+    setIsStreaming(true);
+    setStreamingContent("");
 
     try {
+      // الحصول على آخر الرسائل للمحادثة الحالية
+      const updatedChat = getCurrentChat();
+      const currentMessages = updatedChat?.messages || [];
+      
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: [...messages, userMsg] }),
+        body: JSON.stringify({ messages: currentMessages }),
       });
 
       if (!resp.ok || !resp.body) {
@@ -63,6 +66,7 @@ export default function TagweedAI() {
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let textBuffer = "";
+      let assistantSoFar = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -86,16 +90,7 @@ export default function TagweedAI() {
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             if (content) {
               assistantSoFar += content;
-              // تحديث الرسالة الأخيرة
-              const currentChat = getCurrentChat();
-              if (currentChat && currentChat.messages.length > 0) {
-                const lastMessage = currentChat.messages[currentChat.messages.length - 1];
-                if (lastMessage.role === "assistant") {
-                  // حذف وإضافة الرسالة المحدثة
-                  const updatedMessages = [...currentChat.messages.slice(0, -1), { role: "assistant", content: assistantSoFar }];
-                  // تحديث المحادثة (هذا مؤقت، سنحتاج لطريقة أفضل)
-                }
-              }
+              setStreamingContent(assistantSoFar);
             }
           } catch {
             textBuffer = line + "\n" + textBuffer;
@@ -103,10 +98,17 @@ export default function TagweedAI() {
           }
         }
       }
+
+      // إضافة الرسالة النهائية للمساعد
+      if (assistantSoFar) {
+        addMessage(currentChatId, { role: "assistant", content: assistantSoFar });
+      }
     } catch (e: any) {
       addMessage(currentChatId, { role: "assistant", content: `⚠️ ${e.message || "حدث خطأ، حاول مرة أخرى"}` });
     } finally {
       setIsLoading(false);
+      setIsStreaming(false);
+      setStreamingContent("");
     }
   };
 
@@ -232,7 +234,7 @@ export default function TagweedAI() {
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl px-4 py-6">
-            {messages.length === 0 ? (
+            {messages.length === 0 && !isStreaming ? (
               <div className="flex flex-col items-center gap-6 pt-12">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
                   <Sparkles className="h-8 w-8 text-primary" />
@@ -283,11 +285,22 @@ export default function TagweedAI() {
                       }`}
                       style={{ whiteSpace: "pre-wrap" }}
                     >
-                      {msg.content || (i === messages.length - 1 && isLoading ? "..." : msg.content)}
+                      {msg.content}
                     </div>
                   </div>
                 ))}
-                {isLoading && messages[messages.length - 1]?.role === "user" && !messages[messages.length - 1]?.content && (
+                {isStreaming && streamingContent && (
+                  <div className="flex gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10">
+                      <Bot className="h-4 w-4 text-accent" />
+                    </div>
+                    <div className="max-w-[85%] rounded-2xl px-4 py-3 font-ui text-sm leading-relaxed bg-card border border-primary/10 text-foreground">
+                      {streamingContent}
+                      <span className="inline-block w-1 h-4 bg-primary animate-pulse mr-1" />
+                    </div>
+                  </div>
+                )}
+                {isLoading && !streamingContent && (
                   <div className="flex gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10">
                       <Bot className="h-4 w-4 text-accent" />
@@ -335,4 +348,4 @@ export default function TagweedAI() {
       </div>
     </div>
   );
-        }
+                             }

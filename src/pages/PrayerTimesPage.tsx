@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, RefreshCw, Clock, Moon, Sun, Sunrise, Sunset, Star, ChevronRight, AlertCircle, Check, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { MapPin, RefreshCw, Clock, Moon, Sun, Sunrise, Sunset, Star, ChevronRight, AlertCircle, Check } from 'lucide-react';
 import { toast } from 'sonner';
-import { toArabicNumeral } from '@/lib/quran-api';
 
 interface PrayerTimes {
   Fajr: string;
@@ -40,26 +38,16 @@ const PRAYERS = [
   { key: 'Isha', label: 'العشاء', icon: Moon },
 ];
 
-// المدن الشائعة في الأردن
 const CITIES = [
-  { name: 'عمان', lat: 31.9454, lon: 35.9284 },
-  { name: 'الزرقاء', lat: 32.0608, lon: 36.0942 },
-  { name: 'إربد', lat: 32.5433, lon: 35.8484 },
-  { name: 'الرصيفة', lat: 32.0167, lon: 36.0833 },
-  { name: 'السلط', lat: 32.0392, lon: 35.7272 },
-  { name: 'مادبا', lat: 31.7167, lon: 35.8 },
-  { name: 'الكرك', lat: 31.1833, lon: 35.7 },
-  { name: 'العقبة', lat: 29.5319, lon: 35.0056 },
-  { name: 'معان', lat: 30.1925, lon: 35.7344 },
-  { name: 'الطفيلة', lat: 30.8375, lon: 35.6056 },
-  { name: 'جرش', lat: 32.2747, lon: 35.8914 },
-  { name: 'عجلون', lat: 32.3333, lon: 35.75 },
   { name: 'مكة المكرمة', lat: 21.3891, lon: 39.8579 },
   { name: 'المدينة المنورة', lat: 24.5247, lon: 39.5692 },
   { name: 'الرياض', lat: 24.7136, lon: 46.6753 },
   { name: 'جدة', lat: 21.4858, lon: 39.1925 },
   { name: 'القاهرة', lat: 30.0444, lon: 31.2357 },
   { name: 'دبي', lat: 25.2048, lon: 55.2708 },
+  { name: 'عمان', lat: 31.9474, lon: 35.9272 },
+  { name: 'الدوحة', lat: 25.2854, lon: 51.531 },
+  { name: 'الكويت', lat: 29.3759, lon: 47.9774 },
 ];
 
 function toArabicTime(time: string): string {
@@ -107,15 +95,12 @@ export default function PrayerTimesPage() {
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
   const [showCitySelector, setShowCitySelector] = useState(false);
-  const [detectingLocation, setDetectingLocation] = useState(false);
 
-  // تحديث الوقت كل دقيقة
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  // تحميل المدينة المحفوظة عند بدء التشغيل
   useEffect(() => {
     const savedCity = localStorage.getItem('prayer-city');
     if (savedCity) {
@@ -124,14 +109,13 @@ export default function PrayerTimesPage() {
         setCity(cityData.name);
         fetchTimesByCoords(cityData.lat, cityData.lon, cityData.name);
       } catch {
-        detectLocation();
+        locateMe();
       }
     } else {
-      detectLocation();
+      locateMe();
     }
   }, []);
 
-  // دالة جلب أوقات الصلاة
   async function fetchTimesByCoords(lat: number, lon: number, cityName?: string) {
     setLoading(true);
     setError(null);
@@ -156,7 +140,6 @@ export default function PrayerTimesPage() {
         if (cityName) {
           setCity(cityName);
         } else {
-          // جلب اسم المدينة من الإحداثيات
           const geoRes = await fetch(
             `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ar`
           );
@@ -175,60 +158,33 @@ export default function PrayerTimesPage() {
     }
   }
 
-  // دالة تحديد الموقع التلقائي
-  function detectLocation() {
+  function locateMe() {
     if (!navigator.geolocation) {
       setError('المتصفح لا يدعم تحديد الموقع');
       toast.error('المتصفح لا يدعم تحديد الموقع');
-      // استخدام عمان كافتراضي
-      const defaultCity = CITIES.find(c => c.name === 'عمان') || CITIES[0];
-      localStorage.setItem('prayer-city', JSON.stringify(defaultCity));
-      fetchTimesByCoords(defaultCity.lat, defaultCity.lon, defaultCity.name);
       return;
     }
     
-    setDetectingLocation(true);
     setLoading(true);
-    
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
-        
-        // جلب اسم المدينة من الإحداثيات
-        try {
-          const geoRes = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=ar`
-          );
-          const geoData = await geoRes.json();
-          const cityName = geoData.address?.city || geoData.address?.town || geoData.address?.village || 'موقعي الحالي';
-          
-          const cityData = { name: cityName, lat: latitude, lon: longitude };
-          localStorage.setItem('prayer-city', JSON.stringify(cityData));
-          setCity(cityName);
-          await fetchTimesByCoords(latitude, longitude, cityName);
-          toast.success(`تم تحديد موقعك: ${cityName}`);
-        } catch {
-          const cityData = { name: 'موقعي الحالي', lat: latitude, lon: longitude };
-          localStorage.setItem('prayer-city', JSON.stringify(cityData));
-          await fetchTimesByCoords(latitude, longitude);
-          toast.success('تم تحديد موقعك');
-        }
-        setDetectingLocation(false);
+        localStorage.setItem('prayer-city', JSON.stringify({
+          name: 'موقعي الحالي',
+          lat: latitude,
+          lon: longitude
+        }));
+        await fetchTimesByCoords(latitude, longitude);
       },
-      (error) => {
-        console.error('Geolocation error:', error);
-        setDetectingLocation(false);
-        
-        // فشل تحديد الموقع → استخدام عمان كافتراضي
-        toast.error('لم نتمكن من تحديد موقعك، تم استخدام عمان');
-        const defaultCity = CITIES.find(c => c.name === 'عمان') || CITIES[0];
+      () => {
+        toast.error('لم نتمكن من تحديد موقعك، تم استخدام مكة المكرمة');
+        const defaultCity = CITIES[0];
         localStorage.setItem('prayer-city', JSON.stringify(defaultCity));
         fetchTimesByCoords(defaultCity.lat, defaultCity.lon, defaultCity.name);
       }
     );
   }
 
-  // دالة اختيار مدينة يدوياً
   function selectCity(cityData: typeof CITIES[0]) {
     localStorage.setItem('prayer-city', JSON.stringify(cityData));
     setCity(cityData.name);
@@ -242,7 +198,6 @@ export default function PrayerTimesPage() {
 
   return (
     <div className="min-h-screen pb-24 bg-background" dir="rtl">
-      {/* Header */}
       <div className="sticky top-0 z-50 border-b border-primary/20 bg-card/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
           <Link to="/" className="text-primary transition-transform hover:scale-105 active:scale-95">
@@ -250,21 +205,15 @@ export default function PrayerTimesPage() {
           </Link>
           <h1 className="font-ui text-lg font-bold">أوقات الصلاة</h1>
           <button
-            onClick={detectLocation}
-            disabled={detectingLocation || loading}
+            onClick={locateMe}
             className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-            title="تحديد الموقع الحالي"
+            disabled={loading}
           >
-            {detectingLocation ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
 
-      {/* City Selector */}
       <div className="mx-auto max-w-2xl px-4 pt-4 pb-2">
         <button
           onClick={() => setShowCitySelector(!showCitySelector)}
@@ -273,14 +222,14 @@ export default function PrayerTimesPage() {
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-primary" />
             <span className="font-ui text-sm text-foreground">
-              {city || (detectingLocation ? 'جاري تحديد الموقع...' : 'اختر المدينة')}
+              {city || 'اختر المدينة'}
             </span>
           </div>
           <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${showCitySelector ? 'rotate-90' : ''}`} />
         </button>
 
         {showCitySelector && (
-          <div className="mt-2 grid grid-cols-2 gap-2 rounded-xl border border-primary/20 bg-card p-3 max-h-64 overflow-y-auto">
+          <div className="mt-2 grid grid-cols-2 gap-2 rounded-xl border border-primary/20 bg-card p-3">
             {CITIES.map((c) => (
               <button
                 key={c.name}
@@ -311,7 +260,6 @@ export default function PrayerTimesPage() {
 
       {data && !loading && (
         <div className="px-4 space-y-4">
-          {/* التاريخ الهجري */}
           <div className="text-center py-2">
             <p className="font-ui text-sm text-muted-foreground">
               {data.date.hijri.date.replace(/-/g, ' ')} {data.date.hijri.month.ar} {data.date.hijri.year}هـ
@@ -321,7 +269,6 @@ export default function PrayerTimesPage() {
             </p>
           </div>
 
-          {/* الصلاة القادمة */}
           {nextPrayer && minutesUntilNext !== null && (
             <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 px-5 py-5 text-center">
               <p className="font-ui text-xs text-muted-foreground mb-1">الصلاة القادمة</p>
@@ -338,13 +285,11 @@ export default function PrayerTimesPage() {
             </div>
           )}
 
-          {/* قائمة الصلوات */}
           <div className="space-y-2">
             {PRAYERS.map(prayer => {
               const time = data.timings[prayer.key as keyof PrayerTimes];
               const isNext = nextPrayer?.key === prayer.key;
               const Icon = prayer.icon;
-
               const [h, m] = time.split(':').map(Number);
               const prayerMinutes = h * 60 + m;
               const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -382,7 +327,6 @@ export default function PrayerTimesPage() {
             })}
           </div>
 
-          {/* طريقة الحساب */}
           <div className="rounded-xl bg-muted/30 px-4 py-3 text-center">
             <p className="font-ui text-[11px] text-muted-foreground">
               حسب توقيت {data.meta.method.name} • تحديث تلقائي كل ساعة
@@ -392,4 +336,5 @@ export default function PrayerTimesPage() {
       )}
     </div>
   );
-}
+    }
+      

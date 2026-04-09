@@ -18,17 +18,74 @@ interface WordToken {
 
 export type WordState = "idle" | "correct" | "error" | "current";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Normalize ────────────────────────────────────────────────────────────────
+// هدفها: توحيد طريقة كتابة نفس الكلمة سواء جاءت من القرآن أو من Speech API
 
 function normalizeArabic(text: string): string {
   return text
-    .replace(/[\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED]/g, "")
-    .replace(/\u0622|\u0623|\u0625|\u0671/g, "\u0627")
-    .replace(/\u0629/g, "\u0647")
-    .replace(/\u0649/g, "\u064A")
-    .replace(/[،؟!.,'"()[\]{}]/g, "")
+    // 1. إزالة كل الحركات والتشكيل والتجويد
+    .replace(/[\u064B-\u065F]/g, "")      // تنوين، شدة، سكون، حركات
+    .replace(/\u0670/g, "")               // ألف خنجرية
+    .replace(/[\u06D6-\u06DC]/g, "")      // علامات التجويد
+    .replace(/[\u06DF-\u06E4]/g, "")
+    .replace(/[\u06E7\u06E8]/g, "")
+    .replace(/[\u06EA-\u06ED]/g, "")
+    .replace(/\u0640/g, "")               // الكشيدة/التطويل
+
+    // 2. توحيد أشكال الألف
+    .replace(/[\u0622\u0623\u0625\u0671\u0672\u0673\u0675]/g, "\u0627")
+
+    // 3. توحيد الحروف المتشابهة
+    .replace(/\u0629/g, "\u0647")         // تاء مربوطة → هاء
+    .replace(/\u0649/g, "\u064A")         // ألف مقصورة → ياء
+    .replace(/[\u0624]/g, "\u0648")       // واو مع همزة → واو
+    .replace(/[\u0626]/g, "\u064A")       // ياء مع همزة → ياء
+
+    // 4. اللام الشمسية/القمرية — توحيد "ال" في بداية الكلمة
+    // لا نحتاج تغيير، لكن نتأكد من حذف الهمزة الوصل
+    .replace(/\u0671/g, "\u0627")
+
+    // 5. حذف علامات الترقيم
+    .replace(/[،؟!.,;:'"()\[\]{}]/g, "")
+
+    // 6. حذف المسافات الزائدة
+    .replace(/\s+/g, " ")
     .trim();
 }
+
+// ─── Fuzzy Match ──────────────────────────────────────────────────────────────
+// Levenshtein distance — يحسب كم تعديل بين كلمتين
+// لو الفرق صغير نسبياً نعتبرها صح (تغطية اختلافات الـ API)
+
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix: number[][] = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      matrix[i][j] =
+        b[i - 1] === a[j - 1]
+          ? matrix[i - 1][j - 1]
+          : Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+// هل الكلمتان متطابقتان بعد الـ normalize والـ fuzzy؟
+function wordsMatch(spoken: string, expected: string): boolean {
+  if (spoken === expected) return true;
+  const maxLen = Math.max(spoken.length, expected.length);
+  if (maxLen === 0) return true;
+  // نسمح بـ 1 تعديل لكل 4 حروف (25%)
+  const tolerance = Math.floor(maxLen / 4);
+  return levenshtein(spoken, expected) <= Math.max(1, tolerance);
+}
+
+// ─── Tokens ───────────────────────────────────────────────────────────────────
 
 function buildTokens(verses: VerseData[]): WordToken[] {
   const tokens: WordToken[] = [];
@@ -43,38 +100,38 @@ function buildTokens(verses: VerseData[]): WordToken[] {
   return tokens;
 }
 
-// ─── Hook — يُستخدم في QuranPageView ─────────────────────────────────────────
+// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useVoiceRecitation(verses: VerseData[]) {
-  const tokensRef = useRef<WordToken[]>([]);
-  const cursorRef = useRef(0);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastChunkRef = useRef<string>("");
-  const isDoneRef = useRef(false);
+  const tokensRef       = useRef<WordToken[]>([]);
+  const cursorRef       = useRef(0);
+  const recognitionRef  = useRef<SpeechRecognition | null>(null);
+  const timerRef        = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastChunkRef    = useRef<string>("");
+  const isDoneRef       = useRef(false);
 
   const [wordStates, setWordStates] = useState<Map<string, WordState>>(new Map());
-  const [isRecording, setIsRecording] = useState(false);
-  const [isDone, setIsDone] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-  const [correct, setCorrect] = useState(0);
-  const [errors, setErrors] = useState(0);
+  const [isRecording, setIsRecording]   = useState(false);
+  const [isDone,      setIsDone]        = useState(false);
+  const [seconds,     setSeconds]       = useState(0);
+  const [correct,     setCorrect]       = useState(0);
+  const [errors,      setErrors]        = useState(0);
 
   useEffect(() => {
     tokensRef.current = buildTokens(verses);
     isDoneRef.current = false;
   }, [verses]);
 
-  // الدالة الرئيسية — تلوّن الكلمة الحالية أثناء القراءة
+  const key = (vi: number, wi: number) => `${vi}-${wi}`;
+
   const markCurrent = useCallback((cursor: number) => {
     const tokens = tokensRef.current;
     if (cursor >= tokens.length) return;
     const t = tokens[cursor];
     setWordStates((prev) => {
       const next = new Map(prev);
-      // امسح current السابق
       prev.forEach((v, k) => { if (v === "current") next.set(k, "idle"); });
-      next.set(`${t.verseIndex}-${t.wordIndex}`, "current");
+      next.set(key(t.verseIndex, t.wordIndex), "current");
       return next;
     });
   }, []);
@@ -82,101 +139,101 @@ export function useVoiceRecitation(verses: VerseData[]) {
   const applyUpdates = useCallback((updates: { vi: number; wi: number; state: WordState }[]) => {
     setWordStates((prev) => {
       const next = new Map(prev);
-      updates.forEach(({ vi, wi, state }) => next.set(`${vi}-${wi}`, state));
+      // امسح current القديم أولاً
+      prev.forEach((v, k) => { if (v === "current") next.set(k, "idle"); });
+      updates.forEach(({ vi, wi, state }) => next.set(key(vi, wi), state));
       return next;
     });
   }, []);
 
-  const handleTranscript = useCallback(
-    (text: string) => {
-      const LOOK_AHEAD = 6;
-      const LOOK_BACK = 10;
+  const handleTranscript = useCallback((text: string) => {
+    const LOOK_AHEAD = 6;
+    const LOOK_BACK  = 12;
 
-      const spoken = normalizeArabic(text).split(/\s+/).filter(Boolean);
-      if (spoken.length === 0) return;
+    const spoken = normalizeArabic(text).split(/\s+/).filter(Boolean);
+    if (spoken.length === 0) return;
 
-      const chunk = spoken.join(" ");
-      if (chunk === lastChunkRef.current) return;
-      lastChunkRef.current = chunk;
+    const chunk = spoken.join(" ");
+    if (chunk === lastChunkRef.current) return;
+    lastChunkRef.current = chunk;
 
-      const tokens = tokensRef.current;
-      let cursor = cursorRef.current;
-      const updates: { vi: number; wi: number; state: WordState }[] = [];
-      let dc = 0;
-      let de = 0;
+    const tokens  = tokensRef.current;
+    let cursor    = cursorRef.current;
+    const updates: { vi: number; wi: number; state: WordState }[] = [];
+    let dc = 0, de = 0;
 
-      for (const word of spoken) {
-        if (cursor >= tokens.length) break;
-        const expected = tokens[cursor];
+    for (const word of spoken) {
+      if (cursor >= tokens.length) break;
+      const expected = tokens[cursor];
 
-        if (word === expected.normalized) {
-          // ✅ صح
-          updates.push({ vi: expected.verseIndex, wi: expected.wordIndex, state: "correct" });
+      if (wordsMatch(word, expected.normalized)) {
+        // ✅ صح (exact أو fuzzy)
+        updates.push({ vi: expected.verseIndex, wi: expected.wordIndex, state: "correct" });
+        dc++;
+        cursor++;
+      } else {
+        // بحث للأمام — هل الكلمة موجودة قريباً؟
+        let foundAhead = -1;
+        for (let i = 1; i <= LOOK_AHEAD && cursor + i < tokens.length; i++) {
+          if (wordsMatch(word, tokens[cursor + i].normalized)) { foundAhead = i; break; }
+        }
+
+        if (foundAhead !== -1) {
+          // الكلمات الوسط خطأ
+          for (let i = 0; i < foundAhead; i++) {
+            const t = tokens[cursor + i];
+            updates.push({ vi: t.verseIndex, wi: t.wordIndex, state: "error" });
+            de++;
+          }
+          const t = tokens[cursor + foundAhead];
+          updates.push({ vi: t.verseIndex, wi: t.wordIndex, state: "correct" });
           dc++;
-          cursor++;
+          cursor += foundAhead + 1;
         } else {
-          // بحث للأمام
-          let foundAhead = -1;
-          for (let i = 1; i <= LOOK_AHEAD && cursor + i < tokens.length; i++) {
-            if (tokens[cursor + i].normalized === word) { foundAhead = i; break; }
+          // بحث للخلف — مكررة سبق قراءتها؟
+          let foundBack = false;
+          for (let i = 1; i <= LOOK_BACK && cursor - i >= 0; i++) {
+            if (wordsMatch(word, tokens[cursor - i].normalized)) { foundBack = true; break; }
           }
 
-          if (foundAhead !== -1) {
-            for (let i = 0; i < foundAhead; i++) {
-              const t = tokens[cursor + i];
-              updates.push({ vi: t.verseIndex, wi: t.wordIndex, state: "error" });
-              de++;
-            }
-            const t = tokens[cursor + foundAhead];
-            updates.push({ vi: t.verseIndex, wi: t.wordIndex, state: "correct" });
-            dc++;
-            cursor += foundAhead + 1;
+          if (foundBack) {
+            // مكررة → تجاهل كلياً
           } else {
-            // بحث للخلف — مكررة؟
-            let foundBack = false;
-            for (let i = 1; i <= LOOK_BACK && cursor - i >= 0; i++) {
-              if (tokens[cursor - i].normalized === word) { foundBack = true; break; }
-            }
-            if (!foundBack) {
-              updates.push({ vi: expected.verseIndex, wi: expected.wordIndex, state: "error" });
-              de++;
-              cursor++;
-            }
-            // مكررة → تجاهل
+            // خطأ حقيقي
+            updates.push({ vi: expected.verseIndex, wi: expected.wordIndex, state: "error" });
+            de++;
+            cursor++;
           }
         }
       }
+    }
 
-      cursorRef.current = cursor;
-      if (updates.length) applyUpdates(updates);
-      if (dc) setCorrect((c) => c + dc);
-      if (de) setErrors((e) => e + de);
+    cursorRef.current = cursor;
+    if (updates.length) applyUpdates(updates);
+    if (dc) setCorrect((c) => c + dc);
+    if (de) setErrors((e) => e + de);
 
-      // لوّن الكلمة التالية المتوقعة
-      if (cursor < tokens.length) markCurrent(cursor);
+    // لوّن الكلمة التالية
+    if (cursor < tokens.length) markCurrent(cursor);
 
-      if (cursor >= tokens.length) {
-        isDoneRef.current = true;
-        setIsDone(true);
-        // امسح current
-        setWordStates((prev) => {
-          const next = new Map(prev);
-          prev.forEach((v, k) => { if (v === "current") next.set(k, "idle"); });
-          return next;
-        });
-        recognitionRef.current?.stop();
-        recognitionRef.current = null;
-        if (timerRef.current) clearInterval(timerRef.current);
-        setIsRecording(false);
-        toast.success("ما شاء الله! أكملت الصفحة 🎉");
-      }
-    },
-    [applyUpdates, markCurrent]
-  );
+    if (cursor >= tokens.length) {
+      isDoneRef.current = true;
+      setIsDone(true);
+      setWordStates((prev) => {
+        const next = new Map(prev);
+        prev.forEach((v, k) => { if (v === "current") next.set(k, "idle"); });
+        return next;
+      });
+      recognitionRef.current?.stop();
+      recognitionRef.current = null;
+      if (timerRef.current) clearInterval(timerRef.current);
+      setIsRecording(false);
+      toast.success("ما شاء الله! أكملت الصفحة 🎉");
+    }
+  }, [applyUpdates, markCurrent]);
 
   const stopRecording = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
-    // امسح current عند الإيقاف
     setWordStates((prev) => {
       const next = new Map(prev);
       prev.forEach((v, k) => { if (v === "current") next.set(k, "idle"); });
@@ -197,10 +254,9 @@ export function useVoiceRecitation(verses: VerseData[]) {
       return;
     }
 
-    // reset
-    cursorRef.current = 0;
+    cursorRef.current    = 0;
     lastChunkRef.current = "";
-    isDoneRef.current = false;
+    isDoneRef.current    = false;
     setWordStates(new Map());
     setCorrect(0);
     setErrors(0);
@@ -208,23 +264,39 @@ export function useVoiceRecitation(verses: VerseData[]) {
     setSeconds(0);
 
     const recognition = new SR();
-    recognition.lang = "ar-SA";
-    recognition.continuous = true;
-    recognition.interimResults = true; // ← interim لتلوين فوري
-    recognition.maxAlternatives = 1;
+    recognition.lang           = "ar-SA";
+    recognition.continuous     = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 3; // ← نأخذ 3 بدائل ونختار الأقرب
 
     recognition.onstart = () => {
       setIsRecording(true);
       setSeconds(0);
       timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
-      // لوّن أول كلمة
       markCurrent(0);
     };
 
     recognition.onresult = (event) => {
       for (let i = event.resultIndex; i < event.results.length; i++) {
         if (event.results[i].isFinal) {
-          handleTranscript(event.results[i][0].transcript);
+          // جرّب كل البدائل وخذ الأفضل
+          const tokens  = tokensRef.current;
+          const cursor  = cursorRef.current;
+          if (cursor >= tokens.length) continue;
+
+          const expected = tokens[cursor].normalized;
+          let bestTranscript = event.results[i][0].transcript;
+          let bestDist = Infinity;
+
+          for (let a = 0; a < event.results[i].length; a++) {
+            const alt = event.results[i][a].transcript;
+            const words = normalizeArabic(alt).split(/\s+/).filter(Boolean);
+            if (words.length === 0) continue;
+            const dist = levenshtein(words[0], expected);
+            if (dist < bestDist) { bestDist = dist; bestTranscript = alt; }
+          }
+
+          handleTranscript(bestTranscript);
         }
       }
     };
@@ -249,9 +321,9 @@ export function useVoiceRecitation(verses: VerseData[]) {
 
   const reset = useCallback(() => {
     stopRecording();
-    cursorRef.current = 0;
+    cursorRef.current    = 0;
     lastChunkRef.current = "";
-    isDoneRef.current = false;
+    isDoneRef.current    = false;
     setWordStates(new Map());
     setCorrect(0);
     setErrors(0);
@@ -262,20 +334,13 @@ export function useVoiceRecitation(verses: VerseData[]) {
   useEffect(() => () => stopRecording(), [stopRecording]);
 
   return {
-    wordStates,
-    isRecording,
-    isDone,
-    seconds,
-    correct,
-    errors,
+    wordStates, isRecording, isDone, seconds, correct, errors,
     total: tokensRef.current.length,
-    startRecording,
-    stopRecording,
-    reset,
+    startRecording, stopRecording, reset,
   };
 }
 
-// ─── شريط التحكم — يُستخدم في QuranPageView ──────────────────────────────────
+// ─── VoiceBar ─────────────────────────────────────────────────────────────────
 
 interface VoiceBarProps {
   isRecording: boolean;
@@ -295,8 +360,7 @@ export function VoiceBar({
 }: VoiceBarProps) {
   const fmt = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-
-  const score = total > 0 ? Math.round(((total - errors) / total) * 100) : 0;
+  const score    = total > 0 ? Math.round(((total - errors) / total) * 100) : 0;
   const hasStats = correct > 0 || errors > 0;
 
   return (
@@ -305,7 +369,6 @@ export function VoiceBar({
         border border-[#6B744E]/25 rounded-2xl px-4 py-2.5 shadow-lg"
       dir="rtl"
     >
-      {/* إحصائيات */}
       <div className="flex items-center gap-2 text-sm min-w-[80px]">
         {isRecording && (
           <>
@@ -325,25 +388,23 @@ export function VoiceBar({
         )}
       </div>
 
-      {/* أزرار */}
       <div className="flex items-center gap-1.5">
         {hasStats && (
-          <Button onClick={onReset} variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 gap-1 px-2 h-8">
+          <Button onClick={onReset} variant="ghost" size="sm"
+            className="text-gray-400 hover:text-gray-600 gap-1 px-2 h-8">
             <RotateCcw className="w-3.5 h-3.5" />
             إعادة
           </Button>
         )}
         {!isRecording ? (
-          <Button
-            onClick={onStart}
-            disabled={isDone}
-            className="bg-[#6B744E] hover:bg-[#5a6240] text-white gap-1.5 rounded-xl px-4 h-8 text-sm"
-          >
+          <Button onClick={onStart} disabled={isDone}
+            className="bg-[#6B744E] hover:bg-[#5a6240] text-white gap-1.5 rounded-xl px-4 h-8 text-sm">
             <Mic className="w-3.5 h-3.5" />
             {isDone ? "انتهيت 🎉" : hasStats ? "استمر" : "ابدأ التسميع"}
           </Button>
         ) : (
-          <Button onClick={onStop} variant="destructive" className="gap-1.5 rounded-xl px-4 h-8 text-sm">
+          <Button onClick={onStop} variant="destructive"
+            className="gap-1.5 rounded-xl px-4 h-8 text-sm">
             <Square className="w-3.5 h-3.5" />
             إيقاف
           </Button>

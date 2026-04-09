@@ -6,8 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useBookmarks } from '@/context/BookmarksContext';
 import { useAudio } from '@/context/AudioContext';
 import { useSettings } from '@/context/SettingsContext';
-import { Bookmark, BookmarkCheck, Play, Pause, Languages, BookOpen, X, Loader2, Mic } from 'lucide-react';
-import { useVoiceRecitation, VoiceBar } from '@/components/VoiceRecitation';
+import { Bookmark, BookmarkCheck, Play, Pause, Languages, BookOpen, X, Loader2 } from 'lucide-react';
 
 interface QuranPageViewProps {
   ayahs?: Ayah[];
@@ -199,19 +198,7 @@ export function QuranPageView({ ayahs, isLoading }: QuranPageViewProps) {
 
   const [showTranslation, setShowTranslation] = useState(false);
   const [showTajweed, setShowTajweed] = useState(false);
-  const [showVoice, setShowVoice] = useState(false);
   const [selectedAyah, setSelectedAyah] = useState<Ayah | null>(null);
-
-  // hook التسميع الصوتي
-  // نستخدم نفس displayText اللي يظهر على الشاشة (بعد حذف البسملة)
-  const voiceVerses = (ayahs ?? []).map((a) => {
-    let text = a.text;
-    const isStart = a.numberInSurah === 1 && a.surah.number !== 1 && a.surah.number !== 9;
-    if (isStart)
-      text = text.replace(BISMILLAH, "").trim();
-    return { verse_number: a.numberInSurah, text_uthmani: text };
-  });
-  const voice = useVoiceRecitation(showVoice ? voiceVerses : []);
 
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -272,15 +259,6 @@ export function QuranPageView({ ayahs, isLoading }: QuranPageViewProps) {
           <BookOpen className="h-3.5 w-3.5" />
           تجويد
         </button>
-        <button
-          onClick={() => { setShowVoice((v) => !v); if (showVoice) voice.reset(); }}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-ui text-xs transition-colors ${
-            showVoice ? 'bg-green-600 text-white' : 'bg-muted text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Mic className="h-3.5 w-3.5" />
-          تسميع
-        </button>
       </div>
 
       {/* وسيلة إيضاح التجويد */}
@@ -336,32 +314,7 @@ export function QuranPageView({ ayahs, isLoading }: QuranPageViewProps) {
                   style={{ fontSize: `${fontSize}px`, lineHeight: '3' }}
                 >
                   <span className="font-quran">
-                    {showVoice ? (
-                      // وضع التسميع — كل كلمة تتلوّن على حدة
-                      (() => {
-                        const ayahIndex = ayahs.indexOf(ayah);
-                        const words = displayText.split(/\s+/).filter(Boolean);
-                        return words.map((word, wi) => {
-                          const state = voice.wordStates.get(`${ayahIndex}-${wi}`) ?? 'idle';
-                          return (
-                            <span
-                              key={wi}
-                              className={`transition-all duration-150 ${
-                                state === 'correct'
-                                  ? 'text-green-600'
-                                  : state === 'error'
-                                  ? 'text-red-500 underline decoration-wavy decoration-red-400'
-                                  : state === 'current'
-                                  ? 'text-amber-500 bg-amber-50 rounded px-0.5'
-                                  : ''
-                              }`}
-                            >
-                              {word}{wi < words.length - 1 ? ' ' : ''}
-                            </span>
-                          );
-                        });
-                      })()
-                    ) : showTajweed ? applyTajweed(displayText) : displayText}
+                    {showTajweed ? applyTajweed(displayText) : displayText}
                   </span>
                   <span className="mx-1 inline-flex items-center gap-0.5 align-middle">
                     <span className="font-ui text-base font-bold text-primary">
@@ -404,23 +357,6 @@ export function QuranPageView({ ayahs, isLoading }: QuranPageViewProps) {
 
       {/* Modal التفسير */}
       {selectedAyah && <AyahModal ayah={selectedAyah} onClose={() => setSelectedAyah(null)} />}
-
-      {/* شريط التسميع الصوتي — ثابت في الأسفل */}
-      {showVoice && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[min(92vw,420px)]">
-          <VoiceBar
-            isRecording={voice.isRecording}
-            isDone={voice.isDone}
-            seconds={voice.seconds}
-            correct={voice.correct}
-            errors={voice.errors}
-            total={voice.total}
-            onStart={voice.startRecording}
-            onStop={voice.stopRecording}
-            onReset={voice.reset}
-          />
-        </div>
-      )}
     </>
   );
 }

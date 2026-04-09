@@ -203,10 +203,14 @@ export function QuranPageView({ ayahs, isLoading }: QuranPageViewProps) {
   const [selectedAyah, setSelectedAyah] = useState<Ayah | null>(null);
 
   // hook التسميع الصوتي
-  const voiceVerses = (ayahs ?? []).map((a) => ({
-    verse_number: a.numberInSurah,
-    text_uthmani: a.text,
-  }));
+  // نستخدم نفس displayText اللي يظهر على الشاشة (بعد حذف البسملة)
+  const voiceVerses = (ayahs ?? []).map((a) => {
+    let text = a.text;
+    const isStart = a.numberInSurah === 1 && a.surah.number !== 1 && a.surah.number !== 9;
+    if (isStart)
+      text = text.replace(BISMILLAH, "").trim();
+    return { verse_number: a.numberInSurah, text_uthmani: text };
+  });
   const voice = useVoiceRecitation(showVoice ? voiceVerses : []);
 
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

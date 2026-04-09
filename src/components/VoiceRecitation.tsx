@@ -1,11 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Mic, Square, RotateCcw, Loader2 } from "lucide-react";
+import { Mic, Square, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface VerseData {
+export interface VerseData {
   verse_number: number;
   text_uthmani: string;
 }
@@ -13,15 +13,10 @@ interface VerseData {
 interface WordToken {
   verseIndex: number;
   wordIndex: number;
-  original: string;
   normalized: string;
 }
 
-type WordState = "idle" | "correct" | "error";
-
-interface VoiceRecitationProps {
-  verses: VerseData[];
-}
+export type WordState = "idle" | "correct" | "error" | "current";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -42,26 +37,21 @@ function buildTokens(verses: VerseData[]): WordToken[] {
       .split(/\s+/)
       .filter(Boolean)
       .forEach((word, wi) => {
-        tokens.push({
-          verseIndex: vi,
-          wordIndex: wi,
-          original: word,
-          normalized: normalizeArabic(word),
-        });
+        tokens.push({ verseIndex: vi, wordIndex: wi, normalized: normalizeArabic(word) });
       });
   });
   return tokens;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Hook — يُستخدم في QuranPageView ─────────────────────────────────────────
 
-export default function VoiceRecitation({ verses }: VoiceRecitationProps) {
+export function useVoiceRecitation(verses: VerseData[]) {
   const tokensRef = useRef<WordToken[]>([]);
   const cursorRef = useRef(0);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // كلمات آخر chunk معالج — لتتبع التكرار
-  const lastChunkNormalizedRef = useRef<string[]>([]);
+  const lastChunkRef = useRef<string>("");
+  const isDoneRef = useRef(false);
 
   const [wordStates, setWordStates] = useState<Map<string, WordState>>(new Map());
   const [isRecording, setIsRecording] = useState(false);
@@ -72,28 +62,31 @@ export default function VoiceRecitation({ verses }: VoiceRecitationProps) {
 
   useEffect(() => {
     tokensRef.current = buildTokens(verses);
+    isDoneRef.current = false;
   }, [verses]);
 
-  const tokenKey = (t: WordToken) => `${t.verseIndex}-${t.wordIndex}`;
-
-  const applyStates = useCallback((updates: { token: WordToken; state: WordState }[]) => {
+  // الدالة الرئيسية — تلوّن الكلمة الحالية أثناء القراءة
+  const markCurrent = useCallback((cursor: number) => {
+    const tokens = tokensRef.current;
+    if (cursor >= tokens.length) return;
+    const t = tokens[cursor];
     setWordStates((prev) => {
       const next = new Map(prev);
-      updates.forEach(({ token, state }) => next.set(tokenKey(token), state));
+      // امسح current السابق
+      prev.forEach((v, k) => { if (v === "current") next.set(k, "idle"); });
+      next.set(`${t.verseIndex}-${t.wordIndex}`, "current");
       return next;
     });
   }, []);
 
-  /**
-   * المنطق الأساسي:
-   * - نتقدم كلمة كلمة في cursor
-   * - إذا طابقت → صح وتقدم
-   * - إذا ما طابقت → نبحث في الـ LOOK_AHEAD القادمة:
-   *     وجدنا: الكلمات الوسط خطأ + الكلمة صح + تقدم
-   *     ما وجدنا: نبحث في الـ LOOK_BACK السابقة:
-   *         وجدنا (مكررة) → تجاهل كلياً بدون تقدم
-   *         ما وجدنا → خطأ + تقدم
-   */
+  const applyUpdates = useCallback((updates: { vi: number; wi: number; state: WordState }[]) => {
+    setWordStates((prev) => {
+      const next = new Map(prev);
+      updates.forEach(({ vi, wi, state }) => next.set(`${vi}-${wi}`, state));
+      return next;
+    });
+  }, []);
+
   const handleTranscript = useCallback(
     (text: string) => {
       const LOOK_AHEAD = 6;
@@ -102,77 +95,75 @@ export default function VoiceRecitation({ verses }: VoiceRecitationProps) {
       const spoken = normalizeArabic(text).split(/\s+/).filter(Boolean);
       if (spoken.length === 0) return;
 
-      // تحقق هل هذا الـ chunk هو نفس آخر chunk (تكرار بسبب interim)
-      const spokenStr = spoken.join(" ");
-      if (spokenStr === lastChunkNormalizedRef.current.join(" ")) return;
-      lastChunkNormalizedRef.current = spoken;
+      const chunk = spoken.join(" ");
+      if (chunk === lastChunkRef.current) return;
+      lastChunkRef.current = chunk;
 
       const tokens = tokensRef.current;
       let cursor = cursorRef.current;
-      const stateUpdates: { token: WordToken; state: WordState }[] = [];
-      let deltaCorrect = 0;
-      let deltaErrors = 0;
+      const updates: { vi: number; wi: number; state: WordState }[] = [];
+      let dc = 0;
+      let de = 0;
 
       for (const word of spoken) {
         if (cursor >= tokens.length) break;
-
         const expected = tokens[cursor];
 
         if (word === expected.normalized) {
           // ✅ صح
-          stateUpdates.push({ token: expected, state: "correct" });
-          deltaCorrect++;
+          updates.push({ vi: expected.verseIndex, wi: expected.wordIndex, state: "correct" });
+          dc++;
           cursor++;
         } else {
           // بحث للأمام
           let foundAhead = -1;
           for (let i = 1; i <= LOOK_AHEAD && cursor + i < tokens.length; i++) {
-            if (tokens[cursor + i].normalized === word) {
-              foundAhead = i;
-              break;
-            }
+            if (tokens[cursor + i].normalized === word) { foundAhead = i; break; }
           }
 
           if (foundAhead !== -1) {
-            // الكلمات الوسط خطأ
             for (let i = 0; i < foundAhead; i++) {
-              stateUpdates.push({ token: tokens[cursor + i], state: "error" });
-              deltaErrors++;
+              const t = tokens[cursor + i];
+              updates.push({ vi: t.verseIndex, wi: t.wordIndex, state: "error" });
+              de++;
             }
-            // الكلمة المطابقة صح
-            stateUpdates.push({ token: tokens[cursor + foundAhead], state: "correct" });
-            deltaCorrect++;
+            const t = tokens[cursor + foundAhead];
+            updates.push({ vi: t.verseIndex, wi: t.wordIndex, state: "correct" });
+            dc++;
             cursor += foundAhead + 1;
           } else {
             // بحث للخلف — مكررة؟
             let foundBack = false;
             for (let i = 1; i <= LOOK_BACK && cursor - i >= 0; i++) {
-              if (tokens[cursor - i].normalized === word) {
-                foundBack = true;
-                break;
-              }
+              if (tokens[cursor - i].normalized === word) { foundBack = true; break; }
             }
-
-            if (foundBack) {
-              // مكررة → تجاهل، لا تقدم ولا خطأ
-            } else {
-              // خطأ حقيقي
-              stateUpdates.push({ token: expected, state: "error" });
-              deltaErrors++;
+            if (!foundBack) {
+              updates.push({ vi: expected.verseIndex, wi: expected.wordIndex, state: "error" });
+              de++;
               cursor++;
             }
+            // مكررة → تجاهل
           }
         }
       }
 
       cursorRef.current = cursor;
-      if (stateUpdates.length) applyStates(stateUpdates);
-      if (deltaCorrect) setCorrect((c) => c + deltaCorrect);
-      if (deltaErrors) setErrors((e) => e + deltaErrors);
+      if (updates.length) applyUpdates(updates);
+      if (dc) setCorrect((c) => c + dc);
+      if (de) setErrors((e) => e + de);
+
+      // لوّن الكلمة التالية المتوقعة
+      if (cursor < tokens.length) markCurrent(cursor);
 
       if (cursor >= tokens.length) {
+        isDoneRef.current = true;
         setIsDone(true);
-        // نوقف
+        // امسح current
+        setWordStates((prev) => {
+          const next = new Map(prev);
+          prev.forEach((v, k) => { if (v === "current") next.set(k, "idle"); });
+          return next;
+        });
         recognitionRef.current?.stop();
         recognitionRef.current = null;
         if (timerRef.current) clearInterval(timerRef.current);
@@ -180,11 +171,17 @@ export default function VoiceRecitation({ verses }: VoiceRecitationProps) {
         toast.success("ما شاء الله! أكملت الصفحة 🎉");
       }
     },
-    [applyStates]
+    [applyUpdates, markCurrent]
   );
 
   const stopRecording = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
+    // امسح current عند الإيقاف
+    setWordStates((prev) => {
+      const next = new Map(prev);
+      prev.forEach((v, k) => { if (v === "current") next.set(k, "idle"); });
+      return next;
+    });
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     setIsRecording(false);
@@ -200,19 +197,28 @@ export default function VoiceRecitation({ verses }: VoiceRecitationProps) {
       return;
     }
 
+    // reset
     cursorRef.current = 0;
-    lastChunkNormalizedRef.current = [];
+    lastChunkRef.current = "";
+    isDoneRef.current = false;
+    setWordStates(new Map());
+    setCorrect(0);
+    setErrors(0);
+    setIsDone(false);
+    setSeconds(0);
 
     const recognition = new SR();
     recognition.lang = "ar-SA";
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true; // ← interim لتلوين فوري
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       setIsRecording(true);
       setSeconds(0);
       timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+      // لوّن أول كلمة
+      markCurrent(0);
     };
 
     recognition.onresult = (event) => {
@@ -225,12 +231,11 @@ export default function VoiceRecitation({ verses }: VoiceRecitationProps) {
 
     recognition.onerror = (e) => {
       if (e.error === "no-speech") return;
-      if (e.error !== "aborted") toast.error("خطأ في التسجيل: " + e.error);
+      if (e.error !== "aborted") toast.error("خطأ: " + e.error);
     };
 
-    // إعادة تشغيل تلقائية — الـ Web Speech API تقطع بعد صمت
     recognition.onend = () => {
-      if (recognitionRef.current && !isDone) {
+      if (recognitionRef.current && !isDoneRef.current) {
         try { recognition.start(); } catch (_) {}
       } else {
         if (timerRef.current) clearInterval(timerRef.current);
@@ -240,134 +245,109 @@ export default function VoiceRecitation({ verses }: VoiceRecitationProps) {
 
     recognitionRef.current = recognition;
     recognition.start();
-  }, [handleTranscript, isDone]);
+  }, [handleTranscript, markCurrent]);
 
-  const reset = () => {
+  const reset = useCallback(() => {
     stopRecording();
     cursorRef.current = 0;
-    lastChunkNormalizedRef.current = [];
+    lastChunkRef.current = "";
+    isDoneRef.current = false;
     setWordStates(new Map());
     setCorrect(0);
     setErrors(0);
     setIsDone(false);
     setSeconds(0);
-  };
+  }, [stopRecording]);
 
   useEffect(() => () => stopRecording(), [stopRecording]);
 
+  return {
+    wordStates,
+    isRecording,
+    isDone,
+    seconds,
+    correct,
+    errors,
+    total: tokensRef.current.length,
+    startRecording,
+    stopRecording,
+    reset,
+  };
+}
+
+// ─── شريط التحكم — يُستخدم في QuranPageView ──────────────────────────────────
+
+interface VoiceBarProps {
+  isRecording: boolean;
+  isDone: boolean;
+  seconds: number;
+  correct: number;
+  errors: number;
+  total: number;
+  onStart: () => void;
+  onStop: () => void;
+  onReset: () => void;
+}
+
+export function VoiceBar({
+  isRecording, isDone, seconds, correct, errors, total,
+  onStart, onStop, onReset,
+}: VoiceBarProps) {
   const fmt = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
-  const total = tokensRef.current.length;
   const score = total > 0 ? Math.round(((total - errors) / total) * 100) : 0;
-
-  // ─── Render ───────────────────────────────────────────────────────────────
+  const hasStats = correct > 0 || errors > 0;
 
   return (
-    <div className="flex flex-col gap-5 pb-24">
-      {/* نص الآيات */}
-      <div className="space-y-4" dir="rtl">
-        {verses.map((verse, vi) => {
-          const words = verse.text_uthmani.split(/\s+/).filter(Boolean);
-          return (
-            <p
-              key={vi}
-              className="leading-loose text-right"
-              style={{ fontFamily: "'Amiri','Scheherazade New',serif", fontSize: "1.3rem" }}
-            >
-              {words.map((word, wi) => {
-                const state = wordStates.get(`${vi}-${wi}`) ?? "idle";
-                return (
-                  <span
-                    key={wi}
-                    className={`
-                      mx-0.5 transition-colors duration-200
-                      ${state === "correct"
-                        ? "text-green-600"
-                        : state === "error"
-                        ? "text-red-600 underline decoration-wavy decoration-red-400"
-                        : "text-gray-800"}
-                    `}
-                  >
-                    {word}
-                  </span>
-                );
-              })}
-              {/* رقم الآية */}
-              <span
-                className="text-[#6B744E]/60 mx-1 select-none"
-                style={{ fontSize: "1rem" }}
-              >
-                ﴿{verse.verse_number}﴾
-              </span>
-            </p>
-          );
-        })}
+    <div
+      className="flex items-center justify-between bg-white/95 backdrop-blur-md
+        border border-[#6B744E]/25 rounded-2xl px-4 py-2.5 shadow-lg"
+      dir="rtl"
+    >
+      {/* إحصائيات */}
+      <div className="flex items-center gap-2 text-sm min-w-[80px]">
+        {isRecording && (
+          <>
+            <span className="w-2 h-2 bg-red-500 rounded-full animate-ping shrink-0" />
+            <span className="text-gray-400 tabular-nums text-xs">{fmt(seconds)}</span>
+          </>
+        )}
+        {hasStats && (
+          <>
+            <span className="text-green-600 font-semibold text-xs">✓{correct}</span>
+            {errors > 0 && <span className="text-red-500 font-semibold text-xs">✗{errors}</span>}
+            {isDone && <span className="text-[#6B744E] font-bold text-xs">{score}%</span>}
+          </>
+        )}
+        {!isRecording && !hasStats && (
+          <span className="text-gray-400 text-xs">اضغط لتبدأ التسميع</span>
+        )}
       </div>
 
-      {/* ── شريط التحكم الثابت ── */}
-      <div
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50
-          flex items-center gap-4 bg-white/95 backdrop-blur-md
-          border border-[#6B744E]/25 rounded-2xl px-5 py-3 shadow-xl
-          min-w-[280px] max-w-[90vw]"
-        dir="rtl"
-      >
-        {/* إحصائيات */}
-        <div className="flex items-center gap-2 text-sm flex-1">
-          {isRecording && (
-            <>
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
-              <span className="text-gray-400 tabular-nums text-xs">{fmt(seconds)}</span>
-            </>
-          )}
-          {(correct > 0 || errors > 0) && (
-            <>
-              <span className="text-green-600 font-semibold">✓{correct}</span>
-              {errors > 0 && (
-                <span className="text-red-500 font-semibold">✗{errors}</span>
-              )}
-              {isDone && (
-                <span className="text-[#6B744E] font-bold">{score}%</span>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* أزرار */}
-        <div className="flex items-center gap-2">
-          {(correct > 0 || errors > 0 || isDone) && (
-            <Button
-              onClick={reset}
-              variant="ghost"
-              size="sm"
-              className="text-gray-400 hover:text-gray-600 gap-1 px-2"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              إعادة
-            </Button>
-          )}
-
-          {!isRecording ? (
-            <Button
-              onClick={startRecording}
-              disabled={isDone}
-              className="bg-[#6B744E] hover:bg-[#5a6240] text-white gap-2 rounded-xl px-5"
-            >
-              <Mic className="w-4 h-4" />
-              {isDone ? "انتهيت 🎉" : correct > 0 ? "استمر" : "ابدأ التسميع"}
-            </Button>
-          ) : (
-            <Button
-              onClick={stopRecording}
-              variant="destructive"
-              className="gap-2 rounded-xl px-5"
-            >
-              <Square className="w-4 h-4" />
-              إيقاف
-            </Button>
-          )}
-        </div>
+      {/* أزرار */}
+      <div className="flex items-center gap-1.5">
+        {hasStats && (
+          <Button onClick={onReset} variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 gap-1 px-2 h-8">
+            <RotateCcw className="w-3.5 h-3.5" />
+            إعادة
+          </Button>
+        )}
+        {!isRecording ? (
+          <Button
+            onClick={onStart}
+            disabled={isDone}
+            className="bg-[#6B744E] hover:bg-[#5a6240] text-white gap-1.5 rounded-xl px-4 h-8 text-sm"
+          >
+            <Mic className="w-3.5 h-3.5" />
+            {isDone ? "انتهيت 🎉" : hasStats ? "استمر" : "ابدأ التسميع"}
+          </Button>
+        ) : (
+          <Button onClick={onStop} variant="destructive" className="gap-1.5 rounded-xl px-4 h-8 text-sm">
+            <Square className="w-3.5 h-3.5" />
+            إيقاف
+          </Button>
+        )}
       </div>
     </div>
   );

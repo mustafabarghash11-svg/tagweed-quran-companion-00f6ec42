@@ -6,8 +6,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useBookmarks } from '@/context/BookmarksContext';
 import { useAudio } from '@/context/AudioContext';
 import { useSettings } from '@/context/SettingsContext';
-import { Bookmark, BookmarkCheck, Play, Pause, Languages, BookOpen, X, Loader2 } from 'lucide-react';
-import VoiceRecitation from '@/components/VoiceRecitation';
+import { Bookmark, BookmarkCheck, Play, Pause, Languages, BookOpen, X, Loader2, Mic } from 'lucide-react';
+import { useVoiceRecitation, VoiceBar } from '@/components/VoiceRecitation';
 
 interface QuranPageViewProps {
   ayahs?: Ayah[];
@@ -202,6 +202,13 @@ export function QuranPageView({ ayahs, isLoading }: QuranPageViewProps) {
   const [showVoice, setShowVoice] = useState(false);
   const [selectedAyah, setSelectedAyah] = useState<Ayah | null>(null);
 
+  // hook التسميع الصوتي
+  const voiceVerses = (ayahs ?? []).map((a) => ({
+    verse_number: a.numberInSurah,
+    text_uthmani: a.text,
+  }));
+  const voice = useVoiceRecitation(showVoice ? voiceVerses : []);
+
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handlePressStart = (ayah: Ayah) => {
@@ -262,16 +269,12 @@ export function QuranPageView({ ayahs, isLoading }: QuranPageViewProps) {
           تجويد
         </button>
         <button
-          onClick={() => setShowVoice((v) => !v)}
+          onClick={() => { setShowVoice((v) => !v); if (showVoice) voice.reset(); }}
           className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-ui text-xs transition-colors ${
             showVoice ? 'bg-green-600 text-white' : 'bg-muted text-muted-foreground hover:text-foreground'
           }`}
         >
-          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-            <line x1="12" y1="19" x2="12" y2="22"/>
-          </svg>
+          <Mic className="h-3.5 w-3.5" />
           تسميع
         </button>
       </div>
@@ -329,7 +332,32 @@ export function QuranPageView({ ayahs, isLoading }: QuranPageViewProps) {
                   style={{ fontSize: `${fontSize}px`, lineHeight: '3' }}
                 >
                   <span className="font-quran">
-                    {showTajweed ? applyTajweed(displayText) : displayText}
+                    {showVoice ? (
+                      // وضع التسميع — كل كلمة تتلوّن على حدة
+                      (() => {
+                        const ayahIndex = ayahs.indexOf(ayah);
+                        const words = displayText.split(/\s+/).filter(Boolean);
+                        return words.map((word, wi) => {
+                          const state = voice.wordStates.get(`${ayahIndex}-${wi}`) ?? 'idle';
+                          return (
+                            <span
+                              key={wi}
+                              className={`transition-all duration-150 ${
+                                state === 'correct'
+                                  ? 'text-green-600'
+                                  : state === 'error'
+                                  ? 'text-red-500 underline decoration-wavy decoration-red-400'
+                                  : state === 'current'
+                                  ? 'text-amber-500 bg-amber-50 rounded px-0.5'
+                                  : ''
+                              }`}
+                            >
+                              {word}{wi < words.length - 1 ? ' ' : ''}
+                            </span>
+                          );
+                        });
+                      })()
+                    ) : showTajweed ? applyTajweed(displayText) : displayText}
                   </span>
                   <span className="mx-1 inline-flex items-center gap-0.5 align-middle">
                     <span className="font-ui text-base font-bold text-primary">
@@ -373,14 +401,21 @@ export function QuranPageView({ ayahs, isLoading }: QuranPageViewProps) {
       {/* Modal التفسير */}
       {selectedAyah && <AyahModal ayah={selectedAyah} onClose={() => setSelectedAyah(null)} />}
 
-      {/* التسميع الصوتي */}
+      {/* شريط التسميع الصوتي — ثابت في الأسفل */}
       {showVoice && (
-        <VoiceRecitation
-          verses={ayahs.map((a) => ({
-            verse_number: a.numberInSurah,
-            text_uthmani: a.text,
-          }))}
-        />
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[min(92vw,420px)]">
+          <VoiceBar
+            isRecording={voice.isRecording}
+            isDone={voice.isDone}
+            seconds={voice.seconds}
+            correct={voice.correct}
+            errors={voice.errors}
+            total={voice.total}
+            onStart={voice.startRecording}
+            onStop={voice.stopRecording}
+            onReset={voice.reset}
+          />
+        </div>
       )}
     </>
   );

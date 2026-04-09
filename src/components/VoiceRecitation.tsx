@@ -147,8 +147,7 @@ export function useVoiceRecitation(verses: VerseData[]) {
   }, []);
 
   const handleTranscript = useCallback((text: string) => {
-    const LOOK_AHEAD = 6;
-    const LOOK_BACK  = 12;
+    const LOOK_BACK = 12;
 
     const spoken = normalizeArabic(text).split(/\s+/).filter(Boolean);
     if (spoken.length === 0) return;
@@ -157,8 +156,8 @@ export function useVoiceRecitation(verses: VerseData[]) {
     if (chunk === lastChunkRef.current) return;
     lastChunkRef.current = chunk;
 
-    const tokens  = tokensRef.current;
-    let cursor    = cursorRef.current;
+    const tokens = tokensRef.current;
+    let cursor   = cursorRef.current;
     const updates: { vi: number; wi: number; state: WordState }[] = [];
     let dc = 0, de = 0;
 
@@ -167,43 +166,23 @@ export function useVoiceRecitation(verses: VerseData[]) {
       const expected = tokens[cursor];
 
       if (wordsMatch(word, expected.normalized)) {
-        // ✅ صح (exact أو fuzzy)
+        // كلمة صح — تقدم
         updates.push({ vi: expected.verseIndex, wi: expected.wordIndex, state: "correct" });
         dc++;
         cursor++;
       } else {
-        // بحث للأمام — هل الكلمة موجودة قريباً؟
-        let foundAhead = -1;
-        for (let i = 1; i <= LOOK_AHEAD && cursor + i < tokens.length; i++) {
-          if (wordsMatch(word, tokens[cursor + i].normalized)) { foundAhead = i; break; }
+        // هل هي تكرار لكلمة سبق قراءتها؟
+        let foundBack = false;
+        for (let i = 1; i <= LOOK_BACK && cursor - i >= 0; i++) {
+          if (wordsMatch(word, tokens[cursor - i].normalized)) { foundBack = true; break; }
         }
-
-        if (foundAhead !== -1) {
-          // الكلمات الوسط خطأ
-          for (let i = 0; i < foundAhead; i++) {
-            const t = tokens[cursor + i];
-            updates.push({ vi: t.verseIndex, wi: t.wordIndex, state: "error" });
-            de++;
-          }
-          const t = tokens[cursor + foundAhead];
-          updates.push({ vi: t.verseIndex, wi: t.wordIndex, state: "correct" });
-          dc++;
-          cursor += foundAhead + 1;
+        if (foundBack) {
+          // مكررة — تجاهل كلياً، لا تقدم ولا خطأ
         } else {
-          // بحث للخلف — مكررة سبق قراءتها؟
-          let foundBack = false;
-          for (let i = 1; i <= LOOK_BACK && cursor - i >= 0; i++) {
-            if (wordsMatch(word, tokens[cursor - i].normalized)) { foundBack = true; break; }
-          }
-
-          if (foundBack) {
-            // مكررة → تجاهل كلياً
-          } else {
-            // خطأ حقيقي
-            updates.push({ vi: expected.verseIndex, wi: expected.wordIndex, state: "error" });
-            de++;
-            cursor++;
-          }
+          // كلمة غلط — علّم الكلمة الحالية خطأ وتقدم
+          updates.push({ vi: expected.verseIndex, wi: expected.wordIndex, state: "error" });
+          de++;
+          cursor++;
         }
       }
     }

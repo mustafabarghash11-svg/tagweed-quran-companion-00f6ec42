@@ -1,34 +1,162 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react-swc";
+import path from "path";
+import { componentTagger } from "lovable-tagger";
+import { VitePWA } from "vite-plugin-pwa";
 
-export default defineConfig({
+// https://vitejs.dev/config/
+export default defineConfig(({ mode }) => ({
+  server: {
+    host: "::",
+    port: 8080,
+    hmr: {
+      overlay: false,
+    },
+  },
   plugins: [
-    react(),
+    react(), 
+    mode === "development" && componentTagger(),
     VitePWA({
-      registerType: 'autoUpdate', // يحدث الـ Service Worker تلقائياً
+      registerType: 'autoUpdate',
       manifest: {
-        name: 'تجويد - رفيقك في تلاوة القرآن', // اسم التطبيق الكامل
-        short_name: 'تجويد', // الاسم المختصر يظهر تحت الأيقونة
+        name: 'تجويد - رفيقك في تلاوة القرآن',
+        short_name: 'تجويد',
         description: 'تطبيق شامل للقرآن الكريم، الأذكار، مواقيت الصلاة، وأسئلة دينية',
-        theme_color: '#6B744E', // اللون الأساسي اللي حطيتوه
+        theme_color: '#6B744E',
         background_color: '#ffffff',
-        display: 'standalone', // يخلي التطبيق يفتح في نافذة مستقلة
-        start_url: '/', // الصفحة اللي تفتح عند بدء التطبيق
+        display: 'standalone',
+        start_url: '/',
+        scope: '/',
+        orientation: 'portrait',
+        categories: ['religion', 'education', 'books'],
         icons: [
           {
-            src: '/icons/icon-192x192.png', // المسار لصورة 192x192
-            sizes: '192x192',
+            src: '/icons/icon-72x72.png',
+            sizes: '72x72',
             type: 'image/png',
+            purpose: 'any'
           },
           {
-            src: '/icons/icon-512x512.png', // المسار لصورة 512x512
+            src: '/icons/icon-96x96.png',
+            sizes: '96x96',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/icons/icon-128x128.png',
+            sizes: '128x128',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/icons/icon-144x144.png',
+            sizes: '144x144',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/icons/icon-152x152.png',
+            sizes: '152x152',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/icons/icon-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/icons/icon-256x256.png',
+            sizes: '256x256',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/icons/icon-384x384.png',
+            sizes: '384x384',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/icons/icon-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable', // يجعل الأيقونة تظهر بشكل أفضل
+            purpose: 'any'
           },
+          {
+            src: '/icons/icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
+          }
         ],
+        shortcuts: [
+          {
+            name: 'القرآن الكريم',
+            short_name: 'القرآن',
+            description: 'اقرأ القرآن الكريم',
+            url: '/',
+            icons: [{ src: '/icons/icon-96x96.png', sizes: '96x96' }]
+          },
+          {
+            name: 'الأذكار',
+            short_name: 'أذكار',
+            description: 'أذكار الصباح والمساء',
+            url: '/dhikr',
+            icons: [{ src: '/icons/icon-96x96.png', sizes: '96x96' }]
+          },
+          {
+            name: 'مواقيت الصلاة',
+            short_name: 'الصلاة',
+            description: 'أوقات الصلاة حسب موقعك',
+            url: '/prayer-times',
+            icons: [{ src: '/icons/icon-96x96.png', sizes: '96x96' }]
+          }
+        ],
+        screenshots: [
+          {
+            src: '/screenshots/home.png',
+            sizes: '1080x1920',
+            type: 'image/png',
+            label: 'الصفحة الرئيسية'
+          }
+        ],
+        prefer_related_applications: false
       },
-    }),
-  ],
-})
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/api\.alquran\.cloud\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'quran-api-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
+              }
+            }
+          },
+          {
+            urlPattern: /^https:\/\/cdn\.islamic\.network\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'audio-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+              }
+            }
+          }
+        ]
+      }
+    }).filter(Boolean)
+  ].filter(Boolean),
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+    dedupe: ["react", "react-dom"],
+  },
+}));

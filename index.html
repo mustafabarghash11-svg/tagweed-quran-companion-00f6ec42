@@ -2,31 +2,76 @@
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>تجويد</title>
-    <meta name="description" content="تجويد - موقع لقراءة القرآن الكريم بالرسم العثماني مع التنقل بالسورة والجزء والصفحة">
-    <meta name="author" content="Tagweed" />
-    <link rel="manifest" href="/manifest.webmanifest" />
-<meta name="theme-color" content="#6B744E" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>تجويد - تطبيق القرآن الكريم والأذكار</title>
     
+    <!-- Basic Meta Tags -->
+    <meta name="description" content="تجويد - تطبيق شامل للقرآن الكريم، الأذكار، مواقيت الصلاة، وأسئلة دينية" />
+    <meta name="author" content="Tagweed" />
+    <meta name="keywords" content="القرآن, تجويد, أذكار, مواقيت الصلاة, إسلام, دين" />
+    <meta name="theme-color" content="#6B744E" />
+    
+    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
+    <meta property="og:title" content="تجويد - تطبيق القرآن الكريم" />
+    <meta property="og:description" content="تطبيق شامل للقرآن الكريم، الأذكار، مواقيت الصلاة، وأسئلة دينية" />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:url" content="https://tagwed.vercel.app" />
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="تجويد - تطبيق القرآن الكريم" />
+    <meta name="twitter:description" content="تطبيق شامل للقرآن الكريم، الأذكار، مواقيت الصلاة، وأسئلة دينية" />
+    <meta name="twitter:image" content="/og-image.png" />
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="تجويد" />
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-192x192.png" />
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png" />
+    
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet" />
-    <meta property="og:title" content="تجويد">
-  <meta name="twitter:title" content="تجويد">
-  <meta property="og:description" content="تجويد - موقع لقراءة القرآن الكريم بالرسم العثماني مع التنقل بالسورة والجزء والصفحة">
-  <meta name="twitter:description" content="تجويد - موقع لقراءة القرآن الكريم بالرسم العثماني مع التنقل بالسورة والجزء والصفحة">
-  <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <meta property="og:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f11712fd-296a-4336-b9f2-9313cff19705/id-preview-914fcf52--63542dd5-baf8-4cce-a98e-c83ace4f69dc.lovable.app-1774370586746.png">
-  <meta name="twitter:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f11712fd-296a-4336-b9f2-9313cff19705/id-preview-914fcf52--63542dd5-baf8-4cce-a98e-c83ace4f69dc.lovable.app-1774370586746.png">
-  <meta name="twitter:card" content="summary_large_image">
-</head>
+    
+    <!-- MS Application -->
+    <meta name="msapplication-TileColor" content="#6B744E" />
+    <meta name="msapplication-TileImage" content="/icons/icon-144x144.png" />
+    
+    <style>
+      /* تخصيص شريط الحالة في التطبيق */
+      :root {
+        --status-bar-height: env(safe-area-inset-top);
+        --navigation-bar-height: env(safe-area-inset-bottom);
+      }
+      
+      /* منع التحديد العرضي */
+      .no-select {
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      
+      /* تحسين مظهر التطبيق في وضع standalone */
+      @media (display-mode: standalone) {
+        body {
+          padding-top: env(safe-area-inset-top);
+          padding-bottom: env(safe-area-inset-bottom);
+        }
+      }
+    </style>
+  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
-</html>
+      </html>
